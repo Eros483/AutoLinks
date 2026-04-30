@@ -1,0 +1,195 @@
+{
+  "project": "AutoLinks",
+  "last_updated": "2026-04-30",
+  "summary": {
+    "total": 10,
+    "completed": 10,
+    "in_progress": 0,
+    "planned": 0,
+    "tests_passing": 6,
+    "tests_failing": 0,
+    "tests_missing": 4
+  },
+  "features": [
+    {
+      "id": "F001",
+      "name": "NER Entity Extraction",
+      "description": "Extract named entities from draft text using GLiNER API",
+      "status": "completed",
+      "priority": "high",
+      "module": "backend/core/extract.py",
+      "design_doc": "docs/design.MD",
+      "tests": {
+        "status": "missing",
+        "files": [],
+        "notes": "Integration tests with mocked GLiNER API"
+      },
+      "subtasks": [],
+      "notes": "",
+      "added": "2026-04-30",
+      "completed": "2026-04-30"
+    },
+    {
+      "id": "F002",
+      "name": "Sentence Embedding Generation",
+      "description": "Generate embeddings using all-MiniLM-L6-v2 local model",
+      "status": "completed",
+      "priority": "high",
+      "module": "backend/core/embed.py",
+      "design_doc": "docs/design.MD",
+      "tests": {
+        "status": "completed",
+        "files": ["backend/tests/test_core/test_embed.py"],
+        "notes": "Tests for embed_text and batch embedding"
+      },
+      "subtasks": [],
+      "notes": "",
+      "added": "2026-04-30",
+      "completed": "2026-04-30"
+    },
+    {
+      "id": "F003",
+      "name": "Qdrant Vector Search",
+      "description": "Search for semantically similar article chunks via Qdrant",
+      "status": "completed",
+      "priority": "high",
+      "module": "backend/core/search.py",
+      "design_doc": "docs/design.MD",
+      "tests": {
+        "status": "completed",
+        "files": ["backend/tests/test_core/test_qdrant.py"],
+        "notes": "Tests cover local and hosted client creation plus normalized search result mapping"
+      },
+      "subtasks": [],
+      "notes": "Configured for local Qdrant by default during development while preserving hosted deployment support via optional API key.",
+      "added": "2026-04-30",
+      "completed": "2026-04-30"
+    },
+    {
+      "id": "F004",
+      "name": "Equity-Aware Re-ranking",
+      "description": "Re-rank candidates based on similarity and link equity need",
+      "status": "completed",
+      "priority": "high",
+      "module": "backend/core/rerank.py",
+      "design_doc": "docs/design.MD",
+      "tests": {
+        "status": "completed",
+        "files": ["backend/tests/test_core/test_rerank.py"],
+        "notes": "Tests for equity_need, final_score, rerank_candidates"
+      },
+      "subtasks": [],
+      "notes": "",
+      "added": "2026-04-30",
+      "completed": "2026-04-30"
+    },
+    {
+      "id": "F005",
+      "name": "Sitemap Crawl and Ingest",
+      "description": "Crawl sitemap, extract article text, chunk and upsert to Qdrant",
+      "status": "completed",
+      "priority": "high",
+      "module": "backend/core/ingest.py",
+      "design_doc": "docs/design.MD",
+      "tests": {
+        "status": "missing",
+        "files": [],
+        "notes": "Tests for chunk_text, parse_sitemap, crawl_and_extract"
+      },
+      "subtasks": [],
+      "notes": "",
+      "added": "2026-04-30",
+      "completed": "2026-04-30"
+    },
+    {
+      "id": "F006",
+      "name": "Recommend API Endpoint",
+      "description": "POST /api/v1/recommend - analyze text and return link recommendations",
+      "status": "completed",
+      "priority": "high",
+      "module": "backend/api/v1/routes.py",
+      "design_doc": "docs/design.MD",
+      "tests": {
+        "status": "completed",
+        "files": ["backend/tests/test_api/test_routes.py"],
+        "notes": "Integration tests with mocked core modules"
+      },
+      "subtasks": [],
+      "notes": "",
+      "added": "2026-04-30",
+      "completed": "2026-04-30"
+    },
+    {
+      "id": "F007",
+      "name": "Ingest API Endpoint",
+      "description": "POST /api/v1/ingest - ingest single article into vector store",
+      "status": "completed",
+      "priority": "medium",
+      "module": "backend/api/v1/routes.py",
+      "design_doc": "docs/design.MD",
+      "tests": {
+        "status": "completed",
+        "files": ["backend/tests/test_api/test_routes.py"],
+        "notes": "Basic validation tests"
+      },
+      "subtasks": [],
+      "notes": "",
+      "added": "2026-04-30",
+      "completed": "2026-04-30"
+    },
+    {
+      "id": "F008",
+      "name": "Health Check Endpoint",
+      "description": "GET /api/v1/health - returns service status and model loaded state",
+      "status": "completed",
+      "priority": "medium",
+      "module": "backend/api/v1/routes.py",
+      "design_doc": "docs/design.MD",
+      "tests": {
+        "status": "completed",
+        "files": ["backend/tests/test_api/test_routes.py"],
+        "notes": "Tests for health endpoint"
+      },
+      "subtasks": [],
+      "notes": "",
+      "added": "2026-04-30",
+      "completed": "2026-04-30"
+    },
+    {
+      "id": "F009",
+      "name": "Configuration Management",
+      "description": "Centralized config using Pydantic BaseSettings",
+      "status": "completed",
+      "priority": "high",
+      "module": "backend/utils/config.py",
+      "design_doc": "docs/design.MD",
+      "tests": {
+        "status": "missing",
+        "files": [],
+        "notes": "Tests for config defaults and env var loading"
+      },
+      "subtasks": [],
+      "notes": "",
+      "added": "2026-04-30",
+      "completed": "2026-04-30"
+    },
+    {
+      "id": "F010",
+      "name": "Logging System",
+      "description": "Custom logger with file output and structured logging",
+      "status": "completed",
+      "priority": "high",
+      "module": "backend/utils/logger.py",
+      "design_doc": "docs/design.MD",
+      "tests": {
+        "status": "missing",
+        "files": [],
+        "notes": "Tests for logger output and formatting"
+      },
+      "subtasks": [],
+      "notes": "",
+      "added": "2026-04-30",
+      "completed": "2026-04-30"
+    }
+  ]
+}

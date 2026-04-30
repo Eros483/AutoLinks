@@ -1,0 +1,25 @@
+.editor-page {
+  width: 100%;
+}
+
+.editor-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+
+@media (max-width: 768px) {
+  .editor-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.editor-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.recommendations-section {
+  display: flex;
+  flex-direction: column;
+}
