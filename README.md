@@ -136,5 +136,6 @@ INFO:     Waiting for application shutdown.
 INFO:     Application shutdown complete.
 INFO:     Finished server process [55764]
 INFO:     Stopping reloader process [55757]
-
 ```
+
+- [ ] Consider swapping to `Moss` for vector DB, might fit on render and docs say its faster than qdrant and similiar
