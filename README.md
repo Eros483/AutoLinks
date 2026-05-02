@@ -182,6 +182,11 @@ Full design and architecture thought for the project: [docs/design.md](docs/desi
 
 ---
 
+## TODO
+- [ ] Add Eval 1 - i.e measure time taken for 50+ requests and see if its <5ms
+- [ ] Add Eval 4, i.e if we're even making any meaningful change lmao.
+
+---
 ## License
 
 MIT
