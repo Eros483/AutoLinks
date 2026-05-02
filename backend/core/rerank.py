@@ -62,23 +62,20 @@ def rerank_candidates(
     if alpha is None:
         alpha = config.rerank_alpha
 
-    results = []
-    for candidate in candidates:
+    for index, candidate in enumerate(candidates):
         url = candidate.get("url", "")
         inbound_count = link_graph.get(url, 0)
         eq_need = equity_need(inbound_count)
         sim_score = candidate.get("score", 0.0)
         final = final_score(sim_score, inbound_count, alpha)
 
-        results.append(
-            {
-                **candidate,
-                "inbound_link_count": inbound_count,
-                "equity_need_score": round(eq_need, 4),
-                "final_score": round(final, 4),
-            }
-        )
+        candidates[index] = {
+            **candidate,
+            "inbound_link_count": inbound_count,
+            "equity_need_score": round(eq_need, 4),
+            "final_score": round(final, 4),
+        }
 
-    results.sort(key=lambda x: x["final_score"], reverse=True)
-    logger.info(f"Re-ranked {len(results)} candidates")
-    return results
+    candidates.sort(key=lambda candidate: candidate["final_score"], reverse=True)
+    logger.info(f"Re-ranked {len(candidates)} candidates")
+    return candidates

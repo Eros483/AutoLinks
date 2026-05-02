@@ -123,19 +123,3 @@ This returns fixture entity data while still running the full embedding, search,
 See `docs/design.MD` for full architecture details.
 
 ---
-
-## TODO
-
-- [ ] Fix Qdrant issues, linked below.
-```
-500 Internal Server Error
-/home/arnab/miniconda3/envs/autolinks/lib/python3.11/site-packages/qdrant_client/qdrant_remote.py:288: UserWarning: Failed to obtain server version. Unable to check client-server compatibility. Set check_compatibility=False to skip version check.
-  show_warning(
-^CINFO:     Shutting down
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-INFO:     Finished server process [55764]
-INFO:     Stopping reloader process [55757]
-```
-
-- [ ] Consider swapping to `Moss` for vector DB, might fit on render and docs say its faster than qdrant and similiar

@@ -18,6 +18,10 @@ def create_qdrant_client():
         raise ModuleNotFoundError("qdrant_client is required to create a Qdrant client")
 
     client_kwargs: Dict[str, Any] = {"url": config.qdrant_url}
+    if config.qdrant_url.startswith("http://localhost") or config.qdrant_url.startswith(
+        "http://127.0.0.1"
+    ):
+        client_kwargs["check_compatibility"] = False
     if config.qdrant_api_key:
         client_kwargs["api_key"] = config.qdrant_api_key
 

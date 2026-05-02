@@ -6,7 +6,7 @@ from backend.core import search
 
 
 def test_create_qdrant_client_uses_local_url_without_api_key(monkeypatch):
-    """Test local Qdrant config does not pass an empty API key."""
+    """Test local Qdrant config skips compatibility checks and empty API key."""
     captured_kwargs = {}
 
     def fake_client(**kwargs):
@@ -24,7 +24,10 @@ def test_create_qdrant_client_uses_local_url_without_api_key(monkeypatch):
 
     create_qdrant_client()
 
-    assert captured_kwargs == {"url": "http://localhost:6333"}
+    assert captured_kwargs == {
+        "url": "http://localhost:6333",
+        "check_compatibility": False,
+    }
 
 
 def test_create_qdrant_client_includes_api_key_when_present(monkeypatch):
