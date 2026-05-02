@@ -65,6 +65,56 @@ def test_recommend_returns_correct_shape(
     assert len(data["recommendations"]) > 0
 
 
+@patch("backend.core.extract.extract_entities")
+@patch("backend.core.embed.embed_text")
+@patch("backend.core.search.search_similar")
+@patch("backend.core.rerank.rerank_candidates")
+def test_recommend_filters_entities_and_passes_min_similarity(
+    mock_rerank,
+    mock_search,
+    mock_embed,
+    mock_extract,
+):
+    """Test recommend drops noisy entities and forwards min_similarity to search."""
+    mock_extract.return_value = [
+        {"text": "WBW", "start": 0, "end": 3, "label": "ORGANIZATION"},
+        {"text": "Wait But Why", "start": 4, "end": 17, "label": "ORGANIZATION"},
+        {"text": "AI", "start": 18, "end": 20, "label": "TOPIC"},
+    ]
+    mock_embed.return_value = [0.1] * 384
+    mock_search.return_value = [
+        {
+            "url": "https://example.com/wait-but-why",
+            "chunk_text": "Wait But Why article",
+            "score": 0.72,
+        }
+    ]
+    mock_rerank.return_value = [
+        {
+            "url": "https://example.com/wait-but-why",
+            "chunk_text": "Wait But Why article",
+            "score": 0.72,
+            "inbound_link_count": 2,
+            "equity_need_score": 0.33,
+            "final_score": 0.6,
+        }
+    ]
+
+    response = client.post(
+        "/api/v1/recommend",
+        json={
+            "text": "Wait But Why is hosting a gathering.",
+            "alpha": 0.7,
+            "min_similarity": 0.65,
+        },
+    )
+
+    assert response.status_code == 200
+    assert len(response.json()["recommendations"]) == 1
+    mock_embed.assert_called_once()
+    mock_search.assert_called_once_with([0.1] * 384, limit=20, min_score=0.65)
+
+
 def test_ingest_missing_fields():
     """Test that missing fields return 422."""
     response = client.post("/api/v1/ingest", json={})

@@ -25,11 +25,11 @@ async def recommend(req: RecommendRequest):
     start_time = time.time()
 
     try:
-        entities = extract.extract_entities(req.text)
+        entities = extract.post_process_entities(extract.extract_entities(req.text))
         if not entities:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No entities found in text",
+                detail="No high-quality entities found in text",
             )
 
         recommendations = []
@@ -37,7 +37,11 @@ async def recommend(req: RecommendRequest):
             query = f"{entity['text']} - {req.text[:200]}"
             query_embedding = embed.embed_text(query)
 
-            candidates = search.search_similar(query_embedding, limit=20)
+            candidates = search.search_similar(
+                query_embedding,
+                limit=20,
+                min_score=req.min_similarity,
+            )
             reranked = rerank.rerank_candidates(candidates, alpha=req.alpha)
 
             for candidate in reranked[:3]:

@@ -7,6 +7,12 @@ class RecommendRequest(BaseModel):
 
     text: str = Field(..., min_length=1, description="Draft text to analyze")
     alpha: float = Field(default=0.7, ge=0.0, le=1.0, description="Similarity weight")
+    min_similarity: float = Field(
+        default=0.65,
+        ge=0.0,
+        le=1.0,
+        description="Minimum similarity score for surfaced recommendations",
+    )
 
 
 class IngestRequest(BaseModel):

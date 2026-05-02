@@ -1,4 +1,5 @@
 # ----- NER entity extraction @ backend/core/extract.py -----
+import re
 from typing import List, Dict, Any
 
 import httpx
@@ -64,6 +65,48 @@ def extract_entities(text: str) -> List[Dict[str, Any]]:
         raise
 
 
+def post_process_entities(
+    entities: List[Dict[str, Any]], min_char_length: int = 5
+) -> List[Dict[str, Any]]:
+    """Filter noisy entities and remove duplicates before vector search."""
+    filtered_entities = []
+    initialisms = set()
+
+    for entity in entities:
+        entity_text = entity.get("text", "").strip()
+        normalized_text = _normalize_entity_text(entity_text)
+        if len(normalized_text) < min_char_length:
+            continue
+
+        initialism = _to_initialism(entity_text)
+        if initialism:
+            initialisms.add(initialism)
+
+        filtered_entities.append(
+            {
+                **entity,
+                "text": entity_text,
+            }
+        )
+
+    deduplicated_entities = []
+    seen_normalized_text = set()
+    for entity in filtered_entities:
+        normalized_text = _normalize_entity_text(entity["text"])
+        if normalized_text in seen_normalized_text:
+            continue
+        if normalized_text.isalpha() and normalized_text in initialisms:
+            continue
+
+        seen_normalized_text.add(normalized_text)
+        deduplicated_entities.append(entity)
+
+    logger.info(
+        f"Post-processed entities from {len(entities)} to {len(deduplicated_entities)}"
+    )
+    return deduplicated_entities
+
+
 def _get_fixture_entities(text: str) -> List[Dict[str, Any]]:
     """Return hardcoded entities for development without API calls."""
     fixtures = [
@@ -103,3 +146,17 @@ def _normalize_entity_match(match: Any, label: str) -> Dict[str, Any]:
         }
 
     return {"text": "", "start": 0, "end": 0, "label": label.upper()}
+
+
+def _normalize_entity_text(text: str) -> str:
+    """Normalize entity text for deduplication comparisons."""
+    return re.sub(r"[^a-z0-9]+", "", text.lower())
+
+
+def _to_initialism(text: str) -> str:
+    """Convert a multi-word entity into its lowercase initialism."""
+    words = re.findall(r"[A-Za-z0-9]+", text)
+    if len(words) < 2:
+        return ""
+
+    return "".join(word[0].lower() for word in words)

@@ -6,9 +6,9 @@
     "completed": 10,
     "in_progress": 0,
     "planned": 0,
-    "tests_passing": 8,
+    "tests_passing": 10,
     "tests_failing": 0,
-    "tests_missing": 3
+    "tests_missing": 2
   },
   "features": [
     {
@@ -20,14 +20,14 @@
       "module": "backend/core/extract.py",
       "design_doc": "docs/design.MD",
       "tests": {
-        "status": "missing",
-        "files": [],
-        "notes": "Integration tests with mocked GLiNER API"
+        "status": "completed",
+        "files": ["backend/tests/test_core/test_extract.py"],
+        "notes": "Tests cover Pioneer payload normalization plus entity post-processing for short-token filtering and initialism deduplication."
       },
       "subtasks": [],
-      "notes": "",
+      "notes": "Entity output is post-processed before vector search to remove noisy short tokens and abbreviation duplicates such as WBW versus Wait But Why.",
       "added": "2026-04-30",
-      "completed": "2026-04-30"
+      "completed": "2026-05-02"
     },
     {
       "id": "F002",
@@ -115,12 +115,12 @@
       "tests": {
         "status": "completed",
         "files": ["backend/tests/test_api/test_routes.py"],
-        "notes": "Integration tests with mocked core modules"
+        "notes": "Integration tests with mocked core modules, including min_similarity forwarding and filtered-entity recommendation behavior."
       },
       "subtasks": [],
-      "notes": "",
+      "notes": "Recommend requests now accept min_similarity to suppress weak matches before reranking.",
       "added": "2026-04-30",
-      "completed": "2026-04-30"
+      "completed": "2026-05-02"
     },
     {
       "id": "F007",
