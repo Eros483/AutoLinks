@@ -93,7 +93,9 @@ uvicorn backend.main:app --reload
 
 The API will be available at `http://localhost:8000`. Visit `http://localhost:8000/docs` for the interactive Swagger UI.
 
-### 5. Frontend Setup (Optional)
+### 5. Frontend Setup
+
+The frontend is a React 18 + Vite application using Zustand for state management and vanilla CSS (no Tailwind).
 
 ```bash
 cd frontend
@@ -104,6 +106,12 @@ npm install
 # Run development server
 npm run dev
 ```
+
+The frontend runs on `http://localhost:3000` and connects to the backend at `http://127.0.0.1:8000/api/v1`.
+
+**Environment Requirements:**
+- Backend must be running at `http://127.0.0.1:8000` (or update `BASE_URL` in `frontend/src/services/api.js`)
+- Qdrant must be running for the backend to return recommendations
 
 ### 6. Run Tests
 

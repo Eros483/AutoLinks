@@ -1,7 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { useStore } from '../store/store'
 
-function Header() {
+const navItems = [
+  { id: 'home', label: 'Home' },
+  { id: 'workspace', label: 'Workspace' },
+  { id: 'faq', label: 'FAQs' },
+]
+
+function Header({ currentView, onNavigate }) {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef(null)
   const { theme, setTheme } = useStore()
@@ -16,10 +22,28 @@ function Header() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  const handleNavigate = (view) => {
+    onNavigate(view)
+    setDropdownOpen(false)
+  }
+
   return (
     <header className="al-header">
-      <a href="/" className="al-logo">AutoLinks</a>
-      <span className="al-tagline">Semantic Internal Linking</span>
+      <button className="al-logo al-logo-btn" onClick={() => onNavigate('home')}>
+        AutoLinks
+      </button>
+      <nav className="al-nav" aria-label="Primary">
+        {navItems.map((item) => (
+          <button
+            key={item.id}
+            className={`al-nav-tab ${currentView === item.id ? 'selected' : ''}`}
+            onClick={() => onNavigate(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </nav>
+      <span className="al-tagline">Arnab</span>
       <div className="al-user" ref={dropdownRef}>
         <button
           className="al-avatar"
@@ -50,7 +74,25 @@ function Header() {
               System
             </button>
           </div>
-          <button className="al-dropdown-item">About</button>
+          <div className="al-dropdown-label">Navigate</div>
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              className="al-dropdown-item"
+              onClick={() => handleNavigate(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
+          <a
+            className="al-dropdown-item al-dropdown-link"
+            href="http://127.0.0.1:8000/docs"
+            target="_blank"
+            rel="noreferrer"
+            onClick={() => setDropdownOpen(false)}
+          >
+            API Docs
+          </a>
         </div>
       </div>
     </header>

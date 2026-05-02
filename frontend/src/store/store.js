@@ -46,7 +46,8 @@ export const useStore = create((set, get) => ({
     recommendations,
     latency,
     loading: false,
-    error: null
+    error: null,
+    activeCardId: null,
   }),
 
   clearRecommendations: () => set({

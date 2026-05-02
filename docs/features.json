@@ -2,13 +2,13 @@
   "project": "AutoLinks",
   "last_updated": "2026-05-02",
   "summary": {
-    "total": 13,
-    "completed": 11,
+    "total": 16,
+    "completed": 14,
     "in_progress": 0,
     "planned": 2,
-    "tests_passing": 10,
+    "tests_passing": 11,
     "tests_failing": 0,
-    "tests_missing": 4
+    "tests_missing": 6
   },
   "features": [
     {
@@ -247,6 +247,60 @@
       "notes": "Eval 4 from design.MD - proves equity-aware reranking redistributes equity without sacrificing relevance",
       "added": "2026-05-02",
       "completed": null
+    },
+    {
+      "id": "F014",
+      "name": "Frontend Landing and Navigation Shell",
+      "description": "Add a branded landing page plus in-app navigation between home, workspace, and FAQ views.",
+      "status": "completed",
+      "priority": "high",
+      "module": "frontend/src/App.jsx",
+      "design_doc": "docs/frontend-design.md",
+      "tests": {
+        "status": "missing",
+        "files": [],
+        "notes": "UI flow covered by manual verification via production build; no component-level automated navigation tests yet."
+      },
+      "subtasks": [],
+      "notes": "Header tabs and the avatar dropdown now navigate to the landing page, analyzer workspace, FAQ glossary, and backend API docs.",
+      "added": "2026-05-02",
+      "completed": "2026-05-02"
+    },
+    {
+      "id": "F015",
+      "name": "Frontend FAQ Glossary",
+      "description": "Provide a dedicated FAQ page that explains core internal-linking and semantic-search terms used throughout the product.",
+      "status": "completed",
+      "priority": "medium",
+      "module": "frontend/src/components/FaqPage.jsx",
+      "design_doc": "docs/frontend-design.md",
+      "tests": {
+        "status": "missing",
+        "files": [],
+        "notes": "Content-oriented UI with no dedicated automated rendering tests yet."
+      },
+      "subtasks": [],
+      "notes": "The glossary includes terms such as embeddings, orphan pages, link equity, GLiNER, Qdrant, and DRY_RUN.",
+      "added": "2026-05-02",
+      "completed": "2026-05-02"
+    },
+    {
+      "id": "F016",
+      "name": "Recommendation-to-Highlight Linking",
+      "description": "When a recommendation card is selected, pulse and scroll the editor highlight into view for the matching phrase.",
+      "status": "completed",
+      "priority": "high",
+      "module": "frontend/src/components/Editor.jsx",
+      "design_doc": "docs/frontend-design.md",
+      "tests": {
+        "status": "completed",
+        "files": ["frontend/src/utils/editor_highlight.test.js"],
+        "notes": "Automated tests cover stable highlight markup generation and safe phrase-key encoding used by the scroll linking behavior."
+      },
+      "subtasks": [],
+      "notes": "Highlight rendering now uses encoded phrase keys so the workspace can reliably locate matching marks before smooth-scrolling them into view.",
+      "added": "2026-05-02",
+      "completed": "2026-05-02"
     }
   ]
 }

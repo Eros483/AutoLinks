@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
 import { useStore } from '../store/store'
 import { fetchRecommendations } from '../services/api'
+import { buildHighlightedHtml, encodePhraseKey } from '../utils/editor_highlight'
 
 function Editor() {
   const [showHighlight, setShowHighlight] = useState(false)
   const textareaRef = useRef(null)
+  const highlightRef = useRef(null)
   const {
     draftText,
     setDraftText,
@@ -35,20 +37,39 @@ function Editor() {
     setShowHighlight(false)
   }
 
-  const getHighlightedText = () => {
-    if (!recommendations.length) return escapeHtml(draftText)
+  useEffect(() => {
+    if (!showHighlight || activeCardId === null || !highlightRef.current) {
+      return
+    }
 
-    const phrases = recommendations.map(r => r.exact_phrase)
-    let result = escapeHtml(draftText)
+    const recommendation = recommendations[activeCardId]
+    if (!recommendation) {
+      return
+    }
 
-    const uniquePhrases = [...new Set(phrases)]
-    uniquePhrases.forEach((phrase) => {
-      const regex = new RegExp(`(${escapeRegex(phrase)})`, 'gi')
-      result = result.replace(regex, `<mark class="hl" data-phrase="${phrase}">$1</mark>`)
+    const phraseKey = encodePhraseKey(recommendation.exact_phrase)
+    const marks = highlightRef.current.querySelectorAll(
+      `mark.hl[data-phrase-key="${phraseKey}"]`,
+    )
+
+    if (!marks.length) {
+      return
+    }
+
+    const firstMark = marks[0]
+    firstMark.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+      inline: 'nearest',
     })
 
-    return result
-  }
+    marks.forEach((mark) => {
+      mark.classList.add('pulse')
+      window.setTimeout(() => {
+        mark.classList.remove('pulse')
+      }, 1400)
+    })
+  }, [activeCardId, recommendations, showHighlight])
 
   return (
     <div className="al-ep">
@@ -56,8 +77,9 @@ function Editor() {
       <div className="al-editor-wrapper">
         {showHighlight && recommendations.length > 0 ? (
           <div
+            ref={highlightRef}
             className="al-editor-highlight"
-            dangerouslySetInnerHTML={{ __html: getHighlightedText() }}
+            dangerouslySetInnerHTML={{ __html: buildHighlightedHtml(draftText, recommendations) }}
           />
         ) : (
           <textarea
@@ -85,21 +107,6 @@ function Editor() {
       </button>
     </div>
   )
-}
-
-function escapeHtml(text) {
-  const map = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#039;'
-  }
-  return text.replace(/[&<>"']/g, m => map[m])
-}
-
-function escapeRegex(string) {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 export default Editor

@@ -1,14 +1,13 @@
 import { useStore } from '../store/store'
 
 function Card({ recommendation, index }) {
-  const { activeCardId, setActiveCard, recommendations } = useStore()
+  const { activeCardId, setActiveCard } = useStore()
 
   const handleClick = () => {
     if (activeCardId === index) {
       setActiveCard(null)
     } else {
       setActiveCard(index)
-      pulseHighlight(recommendation.exact_phrase)
     }
   }
 
@@ -52,18 +51,6 @@ function truncateUrl(url) {
   } catch {
     return url.slice(0, 40) + (url.length > 40 ? '...' : '')
   }
-}
-
-function pulseHighlight(phrase) {
-  setTimeout(() => {
-    const marks = document.querySelectorAll(`mark.hl[data-phrase="${phrase}"]`)
-    marks.forEach(mark => {
-      mark.classList.add('pulse')
-      setTimeout(() => {
-        mark.classList.remove('pulse')
-      }, 1400)
-    })
-  }, 50)
 }
 
 export default Card
