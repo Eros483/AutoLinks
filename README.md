@@ -1,4 +1,4 @@
-<center>
+<div align="center">
 
 # AutoLinks
 
@@ -38,6 +38,7 @@
 <p>A semantic internal link generation API that analyzes draft text, extracts named entities using GLiNER, finds semantically similar articles via Qdrant vector search, and returns high-confidence internal linking recommendations with equity-aware re-ranking.</p>
 
 ---
+<div align="left">
 
 ## Features
 
@@ -176,25 +177,6 @@ This returns fixture entity data while still running the full embedding, search,
 - **Embeddings**: all-MiniLM-L6-v2 (local, ~200MB RAM)
 
 See `docs/design.MD` for full architecture details.
-
----
-
-## Tech Stack
-
-### Backend
-- Python 3.11+
-- FastAPI
-- GLiNER (pioneer.ai)
-- Qdrant
-- sentence-transformers (all-MiniLM-L6-v2)
-- pytest
-- black
-
-### Frontend
-- React 18
-- Vite 5
-- Zustand
-- axios
 
 ---
 
