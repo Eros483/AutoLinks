@@ -179,6 +179,7 @@ This returns fixture entity data while still running the full embedding, search,
 - **Embeddings**: all-MiniLM-L6-v2 (local, ~200MB RAM)
 
 Full design and architecture thought for the project: [docs/design.md](docs/design.md)
+
 ---
 
 ## License
