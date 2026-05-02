@@ -1,14 +1,14 @@
 {
   "project": "AutoLinks",
-  "last_updated": "2026-04-30",
+  "last_updated": "2026-05-02",
   "summary": {
     "total": 10,
     "completed": 10,
     "in_progress": 0,
     "planned": 0,
-    "tests_passing": 6,
+    "tests_passing": 8,
     "tests_failing": 0,
-    "tests_missing": 4
+    "tests_missing": 3
   },
   "features": [
     {
@@ -92,14 +92,17 @@
       "module": "backend/core/ingest.py",
       "design_doc": "docs/design.MD",
       "tests": {
-        "status": "missing",
-        "files": [],
-        "notes": "Tests for chunk_text, parse_sitemap, crawl_and_extract"
+        "status": "completed",
+        "files": [
+          "backend/tests/test_core/test_ingest.py",
+          "backend/tests/test_api/test_routes.py"
+        ],
+        "notes": "Tests cover internal link extraction, inbound link graph construction, and sitemap ingest graph initialization."
       },
       "subtasks": [],
-      "notes": "",
+      "notes": "Sitemap ingestion now reuses crawled HTML to extract outbound internal links and initialize real inbound link counts for equity-aware reranking.",
       "added": "2026-04-30",
-      "completed": "2026-04-30"
+      "completed": "2026-05-02"
     },
     {
       "id": "F006",

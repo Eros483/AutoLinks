@@ -69,3 +69,46 @@ def test_ingest_missing_fields():
     """Test that missing fields return 422."""
     response = client.post("/api/v1/ingest", json={})
     assert response.status_code == 422
+
+
+@patch("backend.core.rerank.init_link_graph")
+@patch("backend.core.ingest.ingest_article")
+@patch("backend.core.ingest.build_link_graph")
+@patch("backend.core.ingest.crawl_and_extract")
+@patch("backend.core.ingest.parse_sitemap")
+def test_ingest_sitemap_initializes_link_graph(
+    mock_parse_sitemap,
+    mock_crawl_and_extract,
+    mock_build_link_graph,
+    mock_ingest_article,
+    mock_init_link_graph,
+):
+    """Test sitemap ingest builds and initializes the rerank link graph."""
+    mock_parse_sitemap.return_value = ["https://example.com/a", "https://example.com/b"]
+    mock_crawl_and_extract.return_value = {
+        "https://example.com/a": {
+            "text": "Article A",
+            "html": "<html></html>",
+            "outbound_links": ["https://example.com/b"],
+        },
+        "https://example.com/b": {
+            "text": "Article B",
+            "html": "<html></html>",
+            "outbound_links": [],
+        },
+    }
+    mock_build_link_graph.return_value = {
+        "https://example.com/a": 0,
+        "https://example.com/b": 1,
+    }
+
+    response = client.post(
+        "/api/v1/ingest/sitemap",
+        json={"sitemap_url": "https://example.com/post-sitemap.xml"},
+    )
+
+    assert response.status_code == 200
+    mock_build_link_graph.assert_called_once_with(mock_crawl_and_extract.return_value)
+    mock_init_link_graph.assert_called_once_with(mock_build_link_graph.return_value)
+    mock_ingest_article.assert_any_call("https://example.com/a", "Article A")
+    mock_ingest_article.assert_any_call("https://example.com/b", "Article B")

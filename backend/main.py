@@ -12,6 +12,10 @@ from backend.utils.logger import logger
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     logger.info(f"Starting {config.app_name}")
+    from backend.utils.qdrant import ensure_collection
+
+    ensure_collection()
+
     if config.debug:
         logger.info("Debug mode enabled")
     if config.dry_run:

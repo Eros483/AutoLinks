@@ -35,3 +35,17 @@ def get_qdrant_client():
         _client = create_qdrant_client()
         logger.info("Qdrant client initialized")
     return _client
+
+
+def ensure_collection(vector_size: int = 384):
+    """Create collection if it doesn't exist."""
+    client = get_qdrant_client()
+    from qdrant_client.models import Distance, VectorParams
+
+    collections = client.get_collections().collections
+    if not any(c.name == config.qdrant_collection for c in collections):
+        client.create_collection(
+            collection_name=config.qdrant_collection,
+            vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
+        )
+        logger.info(f"Created collection: {config.qdrant_collection}")

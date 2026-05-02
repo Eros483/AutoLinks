@@ -58,15 +58,17 @@ def test_create_qdrant_client_includes_api_key_when_present(monkeypatch):
 def test_search_similar_returns_normalized_results(monkeypatch):
     """Test Qdrant search results are mapped into the public shape."""
     mock_client = MagicMock()
-    mock_client.search.return_value = [
-        SimpleNamespace(
-            score=0.91,
-            payload={
-                "url": "https://example.com/post",
-                "chunk_text": "Example chunk",
-            },
-        )
-    ]
+    mock_client.query_points.return_value = SimpleNamespace(
+        points=[
+            SimpleNamespace(
+                score=0.91,
+                payload={
+                    "url": "https://example.com/post",
+                    "chunk_text": "Example chunk",
+                },
+            )
+        ]
+    )
 
     monkeypatch.setattr(search, "get_qdrant_client", lambda: mock_client)
     monkeypatch.setattr(search.config, "qdrant_collection", "articles")
@@ -80,9 +82,10 @@ def test_search_similar_returns_normalized_results(monkeypatch):
             "score": 0.91,
         }
     ]
-    mock_client.search.assert_called_once_with(
+    mock_client.query_points.assert_called_once_with(
         collection_name="articles",
-        query_vector=[0.1, 0.2, 0.3],
+        query=[0.1, 0.2, 0.3],
         limit=5,
         score_threshold=0.7,
+        with_payload=True,
     )

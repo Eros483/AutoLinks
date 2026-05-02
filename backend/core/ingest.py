@@ -1,10 +1,15 @@
 # ----- sitemap crawl, chunk, and upsert @ backend/core/ingest.py -----
 import asyncio
+import hashlib
 import re
 from typing import List, Dict, Any, Optional
+from urllib.parse import urljoin, urlparse, urlunparse
+
 import httpx
-from xml.etree import ElementTree
 import trafilatura
+from bs4 import BeautifulSoup
+from xml.etree import ElementTree
+
 from backend.core.embed import embed_batch
 from backend.utils.config import config
 from backend.utils.logger import logger
@@ -34,27 +39,71 @@ def chunk_text(text: str, sentences_per_chunk: int = 5) -> List[str]:
     return chunks
 
 
+def normalize_url(url: str) -> str:
+    """Normalize URLs so sitemap entries and extracted links compare consistently."""
+    parsed = urlparse(url)
+    path = parsed.path or "/"
+    if path != "/":
+        path = path.rstrip("/")
+
+    return urlunparse((parsed.scheme, parsed.netloc, path, "", "", ""))
+
+
+def extract_internal_links(html: str, base_url: str) -> List[str]:
+    """Extract normalized internal links from article HTML."""
+    soup = BeautifulSoup(html, "html.parser")
+    domain = urlparse(base_url).netloc
+    source_url = normalize_url(base_url)
+    internal_links = set()
+
+    for tag in soup.find_all("a", href=True):
+        href = tag["href"]
+        full_url = normalize_url(urljoin(base_url, href))
+        parsed_link = urlparse(full_url)
+        if parsed_link.scheme not in {"http", "https"}:
+            continue
+        if parsed_link.netloc != domain:
+            continue
+        if full_url == source_url:
+            continue
+        internal_links.add(full_url)
+
+    return sorted(internal_links)
+
+
 async def fetch_and_extract(
     url: str, semaphore: asyncio.Semaphore
-) -> tuple[str, Optional[str]]:
-    """Fetch URL and extract article text using trafilatura."""
+) -> tuple[str, Optional[Dict[str, Any]]]:
+    """Fetch URL once, then extract both article text and outbound internal links."""
     async with semaphore:
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.get(url)
+                response.raise_for_status()
+                normalized_url = normalize_url(url)
+                html = response.text
                 text = trafilatura.extract(response.text)
-                return url, text
+                if not text:
+                    return normalized_url, None
+
+                return normalized_url, {
+                    "text": text,
+                    "html": html,
+                    "outbound_links": extract_internal_links(html, normalized_url),
+                }
         except Exception as e:
             logger.warning(f"Failed to fetch {url}: {e}")
-            return url, None
+            return normalize_url(url), None
 
 
-async def crawl_and_extract(urls: List[str], max_concurrent: int = 5) -> Dict[str, str]:
-    """Crawl URLs concurrently and extract article text."""
+async def crawl_and_extract(
+    urls: List[str], max_concurrent: int = 5
+) -> Dict[str, Dict[str, Any]]:
+    """Crawl URLs concurrently and return extracted text plus internal links."""
     semaphore = asyncio.Semaphore(max_concurrent)
     tasks = [fetch_and_extract(url, semaphore) for url in urls]
     results = await asyncio.gather(*tasks)
-    return {url: text for url, text in results if text}
+    return {url: page_data for url, page_data in results if page_data}
 
 
 def parse_sitemap(url: str) -> List[str]:
@@ -90,17 +139,18 @@ def parse_sitemap_index(url: str) -> List[str]:
         return []
 
 
-def build_link_graph(articles: Dict[str, str]) -> Dict[str, int]:
-    """Build inbound link count map by parsing article HTML for internal links."""
-    graph: Dict[str, int] = {url: 0 for url in articles}
+def build_link_graph(crawled_pages: Dict[str, Dict[str, Any]]) -> Dict[str, int]:
+    """Build inbound link counts by inverting each page's outbound internal links."""
+    graph: Dict[str, int] = {normalize_url(url): 0 for url in crawled_pages}
 
-    href_pattern = re.compile(r'href=["\']([^"\']+)["\']', re.IGNORECASE)
-
-    for url, html in articles.items():
-        matches = href_pattern.findall(html)
-        for href in matches:
-            if href in graph:
-                graph[href] = graph.get(href, 0) + 1
+    for source_url, page_data in crawled_pages.items():
+        for target_url in page_data.get("outbound_links", []):
+            normalized_target = normalize_url(target_url)
+            if normalized_target not in graph:
+                continue
+            if normalized_target == normalize_url(source_url):
+                continue
+            graph[normalized_target] += 1
 
     return graph
 
@@ -125,9 +175,11 @@ def ingest_article(url: str, text: str) -> None:
     client = get_qdrant_client()
     points = []
     for i, (chunk, emb) in enumerate(zip(chunks, embeddings)):
+        hash_input = f"{url}_{i}"
+        point_id = int(hashlib.sha256(hash_input.encode()).hexdigest()[:16], 16)
         points.append(
             PointStruct(
-                id=f"{url}_{i}".replace("/", "_").replace(":", "_"),
+                id=point_id,
                 vector=emb,
                 payload={
                     "url": url,

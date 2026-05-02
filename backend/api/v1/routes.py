@@ -88,7 +88,13 @@ async def ingest(req: IngestRequest):
 async def ingest_sitemap(req: IngestSitemapRequest):
     """Crawl sitemap and ingest all articles."""
     try:
-        from backend.core.ingest import parse_sitemap, crawl_and_extract, ingest_article
+        from backend.core.ingest import (
+            parse_sitemap,
+            crawl_and_extract,
+            build_link_graph,
+            ingest_article,
+        )
+        from backend.core.rerank import init_link_graph
 
         urls = parse_sitemap(req.sitemap_url)
         if not urls:
@@ -97,13 +103,13 @@ async def ingest_sitemap(req: IngestSitemapRequest):
                 detail="No URLs found in sitemap",
             )
 
-        articles = await crawl_and_extract(urls, max_concurrent=req.max_concurrent)
+        crawled_pages = await crawl_and_extract(urls, max_concurrent=req.max_concurrent)
+        init_link_graph(build_link_graph(crawled_pages))
 
-        for url, text in articles.items():
-            if text:
-                ingest_article(url, text)
+        for url, page_data in crawled_pages.items():
+            ingest_article(url, page_data["text"])
 
-        return IngestResponse(status="success", chunks_ingested=len(articles))
+        return IngestResponse(status="success", chunks_ingested=len(crawled_pages))
 
     except Exception as e:
         logger.error(f"Sitemap ingest error: {e}")

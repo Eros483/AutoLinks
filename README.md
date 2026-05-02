@@ -40,14 +40,17 @@ cp .env.example .env
 # - QDRANT_API_KEY: Leave empty for local Qdrant
 ```
 
-### 5. Run the Server
+### 5. Run the Server Locally
 
 ```bash
+# spinning up qdrant docker container
+docker run -p 6333:6333 -p 6334:6334 -v $(pwd)/qdrant_storage:/qdrant/storage qdrant/qdrant
+
 # Development (with auto-reload)
-uvicorn main:app --reload
+uvicorn backend.main:app --reload
 
 # Or run directly
-python -m uvicorn main:app --reload --port 8000
+python -m uvicorn backend.main:app --reload --port 8000
 ```
 
 The API will be available at `http://localhost:8000`. Visit `http://localhost:8000/docs` for the interactive Swagger UI.

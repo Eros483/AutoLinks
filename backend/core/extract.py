@@ -1,13 +1,15 @@
 # ----- NER entity extraction @ backend/core/extract.py -----
 from typing import List, Dict, Any
+
 import httpx
+
 from backend.utils.config import config
 from backend.utils.logger import logger
 
 
 def extract_entities(text: str) -> List[Dict[str, Any]]:
     """
-    Extract named entities from text using GLiNER API.
+    Extract named entities from text using GLiNER via Pioneer API.
 
     Args:
         text: Raw draft text to analyze
@@ -25,9 +27,12 @@ def extract_entities(text: str) -> List[Dict[str, Any]]:
     }
 
     payload = {
-        "model": config.gliner_model,
-        "text": text,
-        "labels": ["PERSON", "ORGANIZATION", "TOPIC", "TECHNOLOGY", "CONCEPT"],
+        "model": "fastino/gliner2-base-v1",
+        "messages": [{"role": "user", "content": text}],
+        "schema": {
+            "entities": ["person", "organization", "topic", "technology", "concept"]
+        },
+        "include_spans": True,
     }
 
     try:
@@ -35,24 +40,27 @@ def extract_entities(text: str) -> List[Dict[str, Any]]:
             config.gliner_url, json=payload, headers=headers, timeout=30.0
         )
         response.raise_for_status()
-        data = response.json()
+        result = response.json()
 
-        entities = []
-        for item in data.get("results", []):
-            entities.append(
-                {
-                    "text": item.get("text", ""),
-                    "start": item.get("span", {}).get("start", 0),
-                    "end": item.get("span", {}).get("end", 0),
-                    "label": item.get("label", "UNKNOWN"),
-                }
-            )
+        content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+        if isinstance(content, str):
+            import json
 
-        logger.info(f"Extracted {len(entities)} entities from text")
-        return entities
+            content = json.loads(content)
+
+        entities_map = content.get("entities", {})
+        results = []
+        for label, matches in entities_map.items():
+            for match in matches:
+                normalized_match = _normalize_entity_match(match, label)
+                if normalized_match["text"]:
+                    results.append(normalized_match)
+
+        logger.info(f"Extracted {len(results)} entities from text")
+        return results
 
     except httpx.HTTPError as e:
-        logger.error(f"GLiNER API error: {e}")
+        logger.error(f"Pioneer API error: {e}")
         raise
 
 
@@ -64,3 +72,34 @@ def _get_fixture_entities(text: str) -> List[Dict[str, Any]]:
         {"text": "gradient descent", "start": 100, "end": 115, "label": "CONCEPT"},
     ]
     return [f for f in fixtures if f["text"].lower() in text.lower()]
+
+
+def _normalize_entity_match(match: Any, label: str) -> Dict[str, Any]:
+    """Normalize Pioneer entity payloads into a consistent internal shape."""
+    if isinstance(match, str):
+        return {
+            "text": match,
+            "start": 0,
+            "end": len(match),
+            "label": label.upper(),
+        }
+
+    if isinstance(match, dict):
+        entity_text = (
+            match.get("text")
+            or match.get("value")
+            or match.get("entity")
+            or match.get("span")
+            or ""
+        )
+        start = match.get("start", 0)
+        end = match.get("end", start + len(entity_text))
+
+        return {
+            "text": entity_text,
+            "start": start,
+            "end": end,
+            "label": label.upper(),
+        }
+
+    return {"text": "", "start": 0, "end": 0, "label": label.upper()}

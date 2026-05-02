@@ -25,12 +25,22 @@ def search_similar(
     client = get_qdrant_client()
 
     try:
-        results = client.search(
-            collection_name=config.qdrant_collection,
-            query_vector=query_embedding,
-            limit=limit,
-            score_threshold=min_score,
-        )
+        if hasattr(client, "query_points"):
+            query_response = client.query_points(
+                collection_name=config.qdrant_collection,
+                query=query_embedding,
+                limit=limit,
+                score_threshold=min_score,
+                with_payload=True,
+            )
+            results = query_response.points
+        else:
+            results = client.search(
+                collection_name=config.qdrant_collection,
+                query_vector=query_embedding,
+                limit=limit,
+                score_threshold=min_score,
+            )
 
         search_results = []
         for result in results:

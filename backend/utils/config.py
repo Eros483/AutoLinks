@@ -25,8 +25,7 @@ class Settings(BaseSettings):
     dry_run: bool = False
 
     # GLiNER
-    gliner_url: str = "https://api.pioneer.ai/v1/gliner"
-    gliner_model: str = "glinerx-large:base"
+    gliner_url: str = "https://api.pioneer.ai/v1/chat/completions"
 
     # Qdrant
     qdrant_collection: str = "articles"
