@@ -339,20 +339,38 @@ body {
   gap: 12px;
 }
 
-.al-primary-cta {
-  margin-top: 0;
-}
-
-.al-secondary-cta {
+.al-cta {
+  display: inline-flex;
+  align-items: center;
   padding: var(--space-btn-v) var(--space-btn-h);
-  border: 1px solid var(--hl);
   border-radius: var(--r-md);
-  background: var(--sf);
-  color: var(--ink);
   font-family: 'Instrument Sans', system-ui, sans-serif;
   font-size: var(--t-btn);
   font-weight: 500;
+  letter-spacing: 0.01em;
   cursor: pointer;
+  transition: opacity 0.2s ease, background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.al-primary-cta {
+  border: 1px solid transparent;
+  background: var(--ink);
+  color: var(--canvas);
+}
+
+.al-primary-cta:hover {
+  opacity: 0.9;
+}
+
+.al-secondary-cta {
+  border: 1px solid var(--hl);
+  background: var(--sf);
+  color: var(--ink);
+}
+
+.al-secondary-cta:hover {
+  background: var(--sf2);
+  border-color: var(--hl);
 }
 
 .al-section-block {

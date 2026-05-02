@@ -262,7 +262,7 @@
         "notes": "UI flow covered by manual verification via production build; no component-level automated navigation tests yet."
       },
       "subtasks": [],
-      "notes": "Header tabs and the avatar dropdown now navigate to the landing page, analyzer workspace, FAQ glossary, and backend API docs.",
+      "notes": "Header tabs and the avatar dropdown now navigate to the landing page, analyzer workspace, FAQ glossary, and backend API docs. Homepage CTAs also share a common base style so primary and secondary actions render with consistent sizing.",
       "added": "2026-05-02",
       "completed": "2026-05-02"
     },

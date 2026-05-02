@@ -37,10 +37,10 @@ function LandingPage({ onNavigate }) {
             and recommends high-confidence internal links with equity-aware reranking.
           </p>
           <div className="al-hero-actions">
-            <button className="al-analyze al-primary-cta" onClick={() => onNavigate('workspace')}>
+            <button className="al-cta al-primary-cta" onClick={() => onNavigate('workspace')}>
               Open Workspace
             </button>
-            <button className="al-secondary-cta" onClick={() => onNavigate('faq')}>
+            <button className="al-cta al-secondary-cta" onClick={() => onNavigate('faq')}>
               Read FAQs
             </button>
           </div>
