@@ -2,8 +2,8 @@
   "project": "AutoLinks",
   "last_updated": "2026-05-02",
   "summary": {
-    "total": 10,
-    "completed": 10,
+    "total": 11,
+    "completed": 11,
     "in_progress": 0,
     "planned": 0,
     "tests_passing": 10,
@@ -193,6 +193,24 @@
       "notes": "",
       "added": "2026-04-30",
       "completed": "2026-04-30"
+    },
+    {
+      "id": "F011",
+      "name": "API Usage Documentation",
+      "description": "Document endpoint usage, payloads, and examples for local API consumers",
+      "status": "completed",
+      "priority": "medium",
+      "module": "docs/api.md",
+      "design_doc": "docs/design.MD",
+      "tests": {
+        "status": "missing",
+        "files": [],
+        "notes": "Documentation task; no automated tests"
+      },
+      "subtasks": [],
+      "notes": "README now links to the dedicated API guide for request examples and response shapes.",
+      "added": "2026-05-02",
+      "completed": "2026-05-02"
     }
   ]
 }
