@@ -132,8 +132,7 @@ pytest --cov=. --cov-report=html
 | `/api/v1/ingest/sitemap` | POST | Crawl and ingest from sitemap |
 | `/api/v1/health` | GET | Health check |
 
-Full API usage, request examples, and response shapes:
-[docs/api.md](/home/arnab/code/personalCode/AutoLinks/docs/api.md)
+Full API usage, request examples, and response shapes: [docs/api.md](docs/api.md)
 
 ---
 
@@ -179,9 +178,7 @@ This returns fixture entity data while still running the full embedding, search,
 - **Vector DB**: Qdrant Cloud Serverless (local for development)
 - **Embeddings**: all-MiniLM-L6-v2 (local, ~200MB RAM)
 
-Full design and architecture thought for the project:
-[docs/design.md](/home/arnab/code/personalCode/AutoLinks/docs/design.md)
-
+Full design and architecture thought for the project: [docs/design.md](docs/design.md)
 ---
 
 ## License
