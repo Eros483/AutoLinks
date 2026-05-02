@@ -48,3 +48,5 @@ qdrant_storage/
 # AI Harness
 .codex
 AGENTS.md
+superpowers/
+.superpowers

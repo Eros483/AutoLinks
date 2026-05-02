@@ -2,13 +2,13 @@
   "project": "AutoLinks",
   "last_updated": "2026-05-02",
   "summary": {
-    "total": 11,
+    "total": 13,
     "completed": 11,
     "in_progress": 0,
-    "planned": 0,
+    "planned": 2,
     "tests_passing": 10,
     "tests_failing": 0,
-    "tests_missing": 2
+    "tests_missing": 4
   },
   "features": [
     {
@@ -211,6 +211,42 @@
       "notes": "README now links to the dedicated API guide for request examples and response shapes.",
       "added": "2026-05-02",
       "completed": "2026-05-02"
+    },
+    {
+      "id": "F012",
+      "name": "Distributed Systems Performance (Latency) Evaluation",
+      "description": "Measure total round-trip time from Vercel request to JSON response across 50 sequential calls. Target: under 3 seconds. Instrumentation logs each pipeline segment (GLiNER, embedding, Qdrant, reranking) independently to identify bottlenecks.",
+      "status": "planned",
+      "priority": "high",
+      "module": "evaluation",
+      "design_doc": "docs/design.MD",
+      "tests": {
+        "status": "missing",
+        "files": [],
+        "notes": "Performance evaluation script with timing instrumentation"
+      },
+      "subtasks": [],
+      "notes": "Eval 1 from design.MD - latency benchmark against 3-second target",
+      "added": "2026-05-02",
+      "completed": null
+    },
+    {
+      "id": "F013",
+      "name": "Link Equity Distribution (Graph Health) Evaluation",
+      "description": "Measure how intelligently the system distributes link equity across the site compared to pure similarity baseline. Run 50 drafts through baseline (α=1.0) and equity-aware (α=0.7) configs. Compute orphan reduction rate and Gini coefficient - equity-aware should achieve lower Gini and higher orphan reduction while maintaining >90% semantic accuracy.",
+      "status": "planned",
+      "priority": "high",
+      "module": "evaluation",
+      "design_doc": "docs/design.MD",
+      "tests": {
+        "status": "missing",
+        "files": [],
+        "notes": "Evaluation script computing Gini coefficient and orphan reduction metrics"
+      },
+      "subtasks": [],
+      "notes": "Eval 4 from design.MD - proves equity-aware reranking redistributes equity without sacrificing relevance",
+      "added": "2026-05-02",
+      "completed": null
     }
   ]
 }
