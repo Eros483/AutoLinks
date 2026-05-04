@@ -190,11 +190,32 @@ Full design and architecture thought for the project: [docs/design.md](docs/desi
 
 ---
 
-## TODO
-- [ ] Add Eval 1 - i.e measure time taken for 50+ requests and see if its <5ms
-- [ ] Add Eval 4, i.e if we're even making any meaningful change lmao.
+## Evaluation
+
+The project includes evaluation scripts to measure performance and equity distribution:
+
+### Eval 1 - Latency Evaluation
+
+```bash
+cd backend
+python -m eval.eval_latency
+```
+
+Measures total round-trip time across 50 sequential requests. Target: under 3 seconds. Reports mean, median, P95, P99 latencies.
+
+### Eval 4 - Link Equity Distribution
+
+```bash
+cd backend
+python -m eval.eval_equity
+```
+
+Compares α=1.0 (baseline, pure similarity) vs α=0.7 (equity-aware) across 50 drafts. Computes Gini coefficient and orphan reduction rate to verify equity-aware re-ranking distributes links intelligently.
+
+**Environment Variable:** Set `EVAL_API_URL` to override default `http://localhost:8000/api/v1`
 
 ---
+
 ## License
 
 MIT

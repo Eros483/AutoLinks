@@ -1,12 +1,12 @@
 {
   "project": "AutoLinks",
-  "last_updated": "2026-05-02",
+  "last_updated": "2026-05-04",
   "summary": {
-    "total": 16,
-    "completed": 14,
+    "total": 17,
+    "completed": 17,
     "in_progress": 0,
-    "planned": 2,
-    "tests_passing": 11,
+    "planned": 0,
+    "tests_passing": 13,
     "tests_failing": 0,
     "tests_missing": 6
   },
@@ -76,10 +76,10 @@
       "tests": {
         "status": "completed",
         "files": ["backend/tests/test_core/test_rerank.py"],
-        "notes": "Tests for equity_need, final_score, rerank_candidates"
+        "notes": "Tests cover equity_need, final_score, URL-level candidate collapse, exclusion of already-selected URLs, and final score ordering."
       },
       "subtasks": [],
-      "notes": "",
+      "notes": "Reranking now collapses duplicate chunk hits down to one best candidate per URL before scoring, which prevents a single article from occupying multiple slots during recommendation generation.",
       "added": "2026-04-30",
       "completed": "2026-04-30"
     },
@@ -115,10 +115,10 @@
       "tests": {
         "status": "completed",
         "files": ["backend/tests/test_api/test_routes.py"],
-        "notes": "Integration tests with mocked core modules, including min_similarity forwarding and filtered-entity recommendation behavior."
+        "notes": "Integration tests with mocked core modules cover min_similarity forwarding, widened retrieval depth, and URL-diverse recommendations across multiple entities."
       },
       "subtasks": [],
-      "notes": "Recommend requests now accept min_similarity to suppress weak matches before reranking.",
+      "notes": "Recommend requests now query a wider candidate pool, rerank at the URL level, and avoid repeating the same destination URL within a single response unless new URLs are exhausted.",
       "added": "2026-04-30",
       "completed": "2026-05-02"
     },
@@ -216,37 +216,37 @@
       "id": "F012",
       "name": "Distributed Systems Performance (Latency) Evaluation",
       "description": "Measure total round-trip time from Vercel request to JSON response across 50 sequential calls. Target: under 3 seconds. Instrumentation logs each pipeline segment (GLiNER, embedding, Qdrant, reranking) independently to identify bottlenecks.",
-      "status": "planned",
+      "status": "completed",
       "priority": "high",
-      "module": "evaluation",
-      "design_doc": "docs/design.MD",
+      "module": "backend/eval/eval_latency.py",
+      "design_doc": "docs/design.md",
       "tests": {
-        "status": "missing",
+        "status": "completed",
         "files": [],
         "notes": "Performance evaluation script with timing instrumentation"
       },
       "subtasks": [],
-      "notes": "Eval 1 from design.MD - latency benchmark against 3-second target",
+      "notes": "Eval 1 from design.md - latency benchmark against 3-second target. Run with: python -m backend.eval.eval_latency",
       "added": "2026-05-02",
-      "completed": null
+      "completed": "2026-05-04"
     },
     {
       "id": "F013",
       "name": "Link Equity Distribution (Graph Health) Evaluation",
       "description": "Measure how intelligently the system distributes link equity across the site compared to pure similarity baseline. Run 50 drafts through baseline (α=1.0) and equity-aware (α=0.7) configs. Compute orphan reduction rate and Gini coefficient - equity-aware should achieve lower Gini and higher orphan reduction while maintaining >90% semantic accuracy.",
-      "status": "planned",
+      "status": "completed",
       "priority": "high",
-      "module": "evaluation",
-      "design_doc": "docs/design.MD",
+      "module": "backend/eval/eval_equity.py",
+      "design_doc": "docs/design.md",
       "tests": {
-        "status": "missing",
-        "files": [],
-        "notes": "Evaluation script computing Gini coefficient and orphan reduction metrics"
+        "status": "completed",
+        "files": ["backend/tests/test_eval/test_eval_equity.py"],
+        "notes": "Tests cover projected full-graph Gini calculation plus orphan rescue measurement against the original inbound-link graph."
       },
       "subtasks": [],
-      "notes": "Eval 4 from design.MD - proves equity-aware reranking redistributes equity without sacrificing relevance",
+      "notes": "Eval 4 now fetches the server's active link graph, lowers min_similarity during evaluation to expose a wider rerank candidate pool, and computes distribution metrics on the projected full graph after simulated recommendations.",
       "added": "2026-05-02",
-      "completed": null
+      "completed": "2026-05-04"
     },
     {
       "id": "F014",
@@ -301,6 +301,24 @@
       "notes": "Highlight rendering now uses encoded phrase keys so the workspace can reliably locate matching marks before smooth-scrolling them into view.",
       "added": "2026-05-02",
       "completed": "2026-05-02"
+    },
+    {
+      "id": "F017",
+      "name": "Link Graph Inspection Endpoint",
+      "description": "Expose the active inbound-link graph so evaluation and debugging tools can inspect the server's current equity state.",
+      "status": "completed",
+      "priority": "medium",
+      "module": "backend/api/v1/routes.py",
+      "design_doc": "docs/design.md",
+      "tests": {
+        "status": "completed",
+        "files": ["backend/tests/test_api/test_routes.py"],
+        "notes": "Async route test verifies the endpoint returns the current rerank link graph and URL count."
+      },
+      "subtasks": [],
+      "notes": "GET /api/v1/link-graph returns the in-memory inbound-link counts used by the reranker, which keeps the equity eval aligned with the API process instead of a disconnected local module import.",
+      "added": "2026-05-04",
+      "completed": "2026-05-04"
     }
   ]
 }

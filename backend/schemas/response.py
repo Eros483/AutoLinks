@@ -1,5 +1,5 @@
 # ----- Pydantic response schemas @ backend/schemas/response.py -----
-from typing import List, Optional
+from typing import Dict, List
 from pydantic import BaseModel
 
 
@@ -35,3 +35,11 @@ class HealthResponse(BaseModel):
 
     status: str
     model_loaded: bool
+
+
+class LinkGraphResponse(BaseModel):
+    """Response for active link graph inspection."""
+
+    status: str
+    url_count: int
+    link_graph: Dict[str, int]

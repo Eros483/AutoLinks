@@ -11,12 +11,16 @@ from backend.schemas.response import (
     RecommendResponse,
     IngestResponse,
     HealthResponse,
+    LinkGraphResponse,
     Recommendation,
 )
 from backend.utils.logger import logger
 from backend.utils.config import config
 
 router = APIRouter(prefix="/api/v1")
+SEARCH_CANDIDATE_LIMIT = 100
+MAX_RECOMMENDATIONS = 10
+MAX_RECOMMENDATIONS_PER_ENTITY = 3
 
 
 @router.post("/recommend", response_model=RecommendResponse)
@@ -33,18 +37,23 @@ async def recommend(req: RecommendRequest):
             )
 
         recommendations = []
+        selected_urls = set()
         for entity in entities[:10]:
             query = f"{entity['text']} - {req.text[:200]}"
             query_embedding = embed.embed_text(query)
 
             candidates = search.search_similar(
                 query_embedding,
-                limit=20,
+                limit=SEARCH_CANDIDATE_LIMIT,
                 min_score=req.min_similarity,
             )
-            reranked = rerank.rerank_candidates(candidates, alpha=req.alpha)
+            reranked = rerank.rerank_candidates(
+                candidates,
+                alpha=req.alpha,
+                excluded_urls=selected_urls,
+            )
 
-            for candidate in reranked[:3]:
+            for candidate in reranked[:MAX_RECOMMENDATIONS_PER_ENTITY]:
                 recommendations.append(
                     Recommendation(
                         exact_phrase=entity["text"],
@@ -56,6 +65,12 @@ async def recommend(req: RecommendRequest):
                         inbound_link_count=candidate["inbound_link_count"],
                     )
                 )
+                selected_urls.add(candidate["url"])
+                if len(recommendations) >= MAX_RECOMMENDATIONS:
+                    break
+
+            if len(recommendations) >= MAX_RECOMMENDATIONS:
+                break
 
         latency_ms = int((time.time() - start_time) * 1000)
         logger.info(f"Recommend completed in {latency_ms}ms")
@@ -63,7 +78,7 @@ async def recommend(req: RecommendRequest):
         return RecommendResponse(
             status="success",
             latency_ms=latency_ms,
-            recommendations=recommendations[:10],
+            recommendations=recommendations[:MAX_RECOMMENDATIONS],
         )
 
     except Exception as e:
@@ -132,3 +147,13 @@ async def health():
         model_loaded = False
 
     return HealthResponse(status="ok", model_loaded=model_loaded)
+
+
+@router.get("/link-graph", response_model=LinkGraphResponse)
+async def get_link_graph():
+    """Expose the active inbound-link graph for evaluation and debugging."""
+    return LinkGraphResponse(
+        status="success",
+        url_count=len(rerank.link_graph),
+        link_graph=rerank.link_graph,
+    )

@@ -1,5 +1,5 @@
 # ----- equity-aware re-ranking @ backend/core/rerank.py -----
-from typing import List, Dict, Any
+from typing import Any, Dict, List, Optional, Set
 from backend.utils.config import config
 from backend.utils.logger import logger
 
@@ -45,9 +45,38 @@ def final_score(similarity: float, inbound_links: int, alpha: float = None) -> f
     return alpha * similarity + (1 - alpha) * eq_need
 
 
+def collapse_candidates_by_url(
+    candidates: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """
+    Collapse chunk-level search hits into one best candidate per URL.
+
+    Args:
+        candidates: List of raw Qdrant chunk hits
+
+    Returns:
+        List containing only the highest-scoring chunk for each URL
+    """
+    best_by_url: Dict[str, Dict[str, Any]] = {}
+
+    for candidate in candidates:
+        url = candidate.get("url", "")
+        if not url:
+            continue
+
+        existing_candidate = best_by_url.get(url)
+        if existing_candidate is None or candidate.get(
+            "score", 0.0
+        ) > existing_candidate.get("score", 0.0):
+            best_by_url[url] = candidate
+
+    return list(best_by_url.values())
+
+
 def rerank_candidates(
     candidates: List[Dict[str, Any]],
     alpha: float = None,
+    excluded_urls: Optional[Set[str]] = None,
 ) -> List[Dict[str, Any]]:
     """
     Re-rank Qdrant results using equity-aware scoring.
@@ -55,6 +84,7 @@ def rerank_candidates(
     Args:
         candidates: List of {url, chunk_text, score} from Qdrant
         alpha: Similarity weight (default from config)
+        excluded_urls: URLs already selected elsewhere in the response
 
     Returns:
         Re-ranked list with equity_need_score and final_score added
@@ -62,20 +92,37 @@ def rerank_candidates(
     if alpha is None:
         alpha = config.rerank_alpha
 
-    for index, candidate in enumerate(candidates):
+    if excluded_urls is None:
+        excluded_urls = set()
+
+    unique_candidates = collapse_candidates_by_url(candidates)
+    reranked_candidates = []
+
+    for candidate in unique_candidates:
         url = candidate.get("url", "")
+        if url in excluded_urls:
+            continue
+
         inbound_count = link_graph.get(url, 0)
         eq_need = equity_need(inbound_count)
         sim_score = candidate.get("score", 0.0)
         final = final_score(sim_score, inbound_count, alpha)
 
-        candidates[index] = {
-            **candidate,
-            "inbound_link_count": inbound_count,
-            "equity_need_score": round(eq_need, 4),
-            "final_score": round(final, 4),
-        }
+        reranked_candidates.append(
+            {
+                **candidate,
+                "inbound_link_count": inbound_count,
+                "equity_need_score": round(eq_need, 4),
+                "final_score": round(final, 4),
+            }
+        )
 
-    candidates.sort(key=lambda candidate: candidate["final_score"], reverse=True)
-    logger.info(f"Re-ranked {len(candidates)} candidates")
-    return candidates
+    reranked_candidates.sort(
+        key=lambda candidate: candidate["final_score"], reverse=True
+    )
+    logger.info(
+        "Re-ranked %s unique URL candidates from %s raw chunks",
+        len(reranked_candidates),
+        len(candidates),
+    )
+    return reranked_candidates
