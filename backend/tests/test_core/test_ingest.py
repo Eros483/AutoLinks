@@ -54,3 +54,29 @@ def test_build_link_graph_counts_real_inbound_links():
         "https://example.com/b": 1,
         "https://example.com/c": 2,
     }
+
+
+def test_build_link_graph_ignores_targets_outside_crawled_sitemap_set():
+    """Test links to pages outside the crawled sitemap do not pollute counts."""
+    crawled_pages = {
+        "https://example.com/a": {
+            "text": "A",
+            "html": "<html></html>",
+            "outbound_links": [
+                "https://example.com/b",
+                "https://example.com/untracked",
+            ],
+        },
+        "https://example.com/b": {
+            "text": "B",
+            "html": "<html></html>",
+            "outbound_links": [],
+        },
+    }
+
+    graph = build_link_graph(crawled_pages)
+
+    assert graph == {
+        "https://example.com/a": 0,
+        "https://example.com/b": 1,
+    }

@@ -31,7 +31,6 @@ test_drafts = [
     "Narrow AI is already everywhere, but general intelligence requires a fundamental breakthrough in reasoning.",
     "The concept of the Turing Test is becoming less relevant as large language models demonstrate emergent behaviors.",
     "If biological intelligence is just a computational process, there is no physical law preventing machines from replicating it.",
-
     # --- Theme: The Fermi Paradox & Space ---
     "Given the vastness of the observable universe, the Fermi Paradox asks the obvious question: where is everybody?",
     "The Great Filter theory suggests there is an evolutionary step so improbable that almost no civilization survives it.",
@@ -43,7 +42,6 @@ test_drafts = [
     "The Drake Equation gives us a mathematical framework to estimate the number of active, communicative extraterrestrial civilizations.",
     "If faster-than-light travel is impossible, galactic colonization will rely on generational ships or advanced cryonics.",
     "The concept of the 'Dark Forest' suggests that advanced civilizations stay silent to avoid being destroyed by apex predators.",
-
     # --- Theme: Human Behavior, Brains & Procrastination ---
     "The Instant Gratification Monkey only cares about maximizing the ease and pleasure of the current moment.",
     "When a deadline approaches, the Panic Monster wakes up, forcing the procrastinator into a state of hyper-focus.",
@@ -55,7 +53,6 @@ test_drafts = [
     "The 'Cook vs. Chef' analogy perfectly illustrates the difference between blindly following the crowd and reasoning from first principles.",
     "High-bandwidth brain-machine interfaces like Neuralink could eventually allow for non-verbal conceptual telepathy.",
     "The human neocortex is responsible for our highest-level reasoning, separating us from the purely reactive limbic system.",
-
     # --- Theme: Deep Time, History, and Scale ---
     "If you compress the entire history of Earth into a single calendar year, modern humans only appear in the final seconds of December 31st.",
     "The exponential growth of technological progress means the 21st century will experience far more change than the previous millennium.",
@@ -67,7 +64,6 @@ test_drafts = [
     "The industrial revolution replaced biological muscle power with the immense stored energy of fossil fuels.",
     "When you look at a family tree going back hundreds of generations, you realize how genetically interconnected the entire human race is.",
     "The concept of 'emergence' explains how simple rules at a micro level can create incredibly complex behaviors at a macro level.",
-
     # --- Theme: First Principles, Careers, and Life Choices ---
     "Picking a career path is often paralyzed by the fear of closing doors, but staying in the hallway indefinitely is the worst option.",
     "First-principles thinking requires stripping a problem down to its fundamental physical truths and building up from there.",
@@ -78,7 +74,7 @@ test_drafts = [
     "The difference between a growth mindset and a fixed mindset determines how you handle inevitable failures in a new venture.",
     "Imposter syndrome is incredibly common among high achievers because they are hyper-aware of the gap between their taste and their current output.",
     "Choosing a life partner is essentially picking your permanent roommate, financial partner, and co-parent for the next fifty years.",
-    "The pursuit of happiness often backfires; meaning and fulfillment are usually byproducts of solving difficult, worthwhile problems."
+    "The pursuit of happiness often backfires; meaning and fulfillment are usually byproducts of solving difficult, worthwhile problems.",
 ]
 
 
@@ -153,6 +149,26 @@ def compute_orphan_reduction(recommended_urls, link_graph):
     return rescued / len(orphan_urls)
 
 
+def summarize_graph_distribution(link_graph):
+    """Summarize the current inbound-link distribution for debugging."""
+    inbound_counts = list(link_graph.values())
+    orphan_urls = [
+        url for url, inbound_count in link_graph.items() if inbound_count == 0
+    ]
+    top_inbound_urls = sorted(
+        link_graph.items(), key=lambda item: item[1], reverse=True
+    )[:5]
+
+    return {
+        "url_count": len(link_graph),
+        "orphan_count": len(orphan_urls),
+        "orphan_sample": orphan_urls[:5],
+        "min_inbound": min(inbound_counts) if inbound_counts else 0,
+        "max_inbound": max(inbound_counts) if inbound_counts else 0,
+        "top_inbound_urls": top_inbound_urls,
+    }
+
+
 def fetch_link_graph():
     """Fetch the active link graph from the running API server."""
     response = requests.get(f"{API_BASE}/link-graph", timeout=30)
@@ -174,6 +190,9 @@ def run_equity_evaluation():
     if not link_graph:
         logger.error("Link graph is empty. Ingest a sitemap before running the eval.")
         return
+
+    graph_summary = summarize_graph_distribution(link_graph)
+    logger.info("Initial link graph summary: %s", graph_summary)
 
     baseline_recommendations = []
     equity_aware_recommendations = []
@@ -254,6 +273,11 @@ def run_equity_evaluation():
     equity_orphan_reduction = compute_orphan_reduction(
         set(equity_aware_recommendations), link_graph
     )
+    orphan_urls = {
+        url for url, inbound_count in link_graph.items() if inbound_count == 0
+    }
+    baseline_rescued_orphans = sorted(orphan_urls & set(baseline_recommendations))
+    equity_rescued_orphans = sorted(orphan_urls & set(equity_aware_recommendations))
 
     baseline_unique_urls = len(set(baseline_recommendations))
     equity_unique_urls = len(set(equity_aware_recommendations))
@@ -302,6 +326,20 @@ def run_equity_evaluation():
     logger.info(
         f"Equity eval complete: gini_improved={gini_improved}, orphan_lifted={orphan_lifted}"
     )
+    logger.info(
+        "Orphan diagnostics: total_orphans=%s, baseline_rescued=%s, equity_rescued=%s",
+        len(orphan_urls),
+        len(baseline_rescued_orphans),
+        len(equity_rescued_orphans),
+    )
+    if baseline_rescued_orphans:
+        logger.info("Baseline rescued orphan sample: %s", baseline_rescued_orphans[:5])
+    if equity_rescued_orphans:
+        logger.info("Equity rescued orphan sample: %s", equity_rescued_orphans[:5])
+    if not orphan_lifted:
+        logger.warning(
+            "No orphan lift detected. Inspect link graph summary and skipped-target logs to confirm whether the sitemap corpus produced few actionable orphan URLs or whether internal links are pointing outside the ingested sitemap slice."
+        )
 
     return {
         "baseline_gini": baseline_gini,

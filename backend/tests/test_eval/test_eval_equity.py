@@ -3,6 +3,7 @@ from backend.eval.eval_equity import (
     apply_recommendations,
     compute_gini,
     compute_orphan_reduction,
+    summarize_graph_distribution,
 )
 
 
@@ -65,3 +66,20 @@ def test_compute_orphan_reduction_uses_original_orphan_set():
     )
 
     assert orphan_reduction == 1.0
+
+
+def test_summarize_graph_distribution_reports_orphans_and_top_urls():
+    """Test graph summary exposes the data needed to debug the hashmap."""
+    link_graph = {
+        "https://example.com/orphan": 0,
+        "https://example.com/mid": 2,
+        "https://example.com/popular": 5,
+    }
+
+    summary = summarize_graph_distribution(link_graph)
+
+    assert summary["url_count"] == 3
+    assert summary["orphan_count"] == 1
+    assert summary["orphan_sample"] == ["https://example.com/orphan"]
+    assert summary["max_inbound"] == 5
+    assert summary["top_inbound_urls"][0] == ("https://example.com/popular", 5)

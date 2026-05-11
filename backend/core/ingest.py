@@ -2,6 +2,7 @@
 import asyncio
 import hashlib
 import re
+from collections import Counter
 from typing import List, Dict, Any, Optional
 from urllib.parse import urljoin, urlparse, urlunparse
 
@@ -142,15 +143,49 @@ def parse_sitemap_index(url: str) -> List[str]:
 def build_link_graph(crawled_pages: Dict[str, Dict[str, Any]]) -> Dict[str, int]:
     """Build inbound link counts by inverting each page's outbound internal links."""
     graph: Dict[str, int] = {normalize_url(url): 0 for url in crawled_pages}
+    matched_targets = 0
+    skipped_targets: Counter[str] = Counter()
+    zero_outbound_pages = 0
+    total_outbound_links = 0
 
     for source_url, page_data in crawled_pages.items():
-        for target_url in page_data.get("outbound_links", []):
+        outbound_links = page_data.get("outbound_links", [])
+        total_outbound_links += len(outbound_links)
+        if not outbound_links:
+            zero_outbound_pages += 1
+
+        for target_url in outbound_links:
             normalized_target = normalize_url(target_url)
             if normalized_target not in graph:
+                skipped_targets[normalized_target] += 1
                 continue
             if normalized_target == normalize_url(source_url):
                 continue
             graph[normalized_target] += 1
+            matched_targets += 1
+
+    orphan_urls = [url for url, inbound_count in graph.items() if inbound_count == 0]
+    top_inbound_urls = sorted(graph.items(), key=lambda item: item[1], reverse=True)[:5]
+    unmatched_target_samples = skipped_targets.most_common(5)
+
+    logger.info(
+        "Link graph summary: urls=%s, total_outbound_links=%s, matched_targets=%s, unmatched_targets=%s, zero_outbound_pages=%s, orphan_urls=%s",
+        len(graph),
+        total_outbound_links,
+        matched_targets,
+        sum(skipped_targets.values()),
+        zero_outbound_pages,
+        len(orphan_urls),
+    )
+    if orphan_urls:
+        logger.info("Orphan URL sample: %s", orphan_urls[:5])
+    if top_inbound_urls:
+        logger.info("Top inbound URLs: %s", top_inbound_urls)
+    if unmatched_target_samples:
+        logger.warning(
+            "Internal links skipped because target is outside crawled sitemap set: %s",
+            unmatched_target_samples,
+        )
 
     return graph
 
