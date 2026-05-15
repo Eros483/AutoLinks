@@ -213,6 +213,22 @@ Run date: `2026-05-15`
 - Target: `< 3000 ms`
 - Outcome: average performance is comfortably within target, but the worst-case request still exceeded the 3-second ceiling
 
+### Eval 2 - AI Precision (LLM-as-a-Judge)
+
+```bash
+cd backend
+DEBUG=false PYTHONPATH=. python -m eval.eval_precision
+```
+
+Measures semantic accuracy of generated internal-link recommendations using Groq as the judge model. The evaluator sends the recommendation output through a Groq-hosted LLM with richer source and target context, then records `YES` or `NO` verdicts on whether each recommendation is semantically accurate and genuinely helpful.
+
+The current Eval 2 implementation uses the official Groq Python SDK with `llama-3.3-70b-versatile` as the judge model.
+
+**Latest precision benchmark result**
+- Judge provider: `Groq`
+- Judge model: `llama-3.3-70b-versatile`
+- YES verdict rate: `83%`
+
 ### Eval 4 - Link Equity Distribution
 
 ```bash

@@ -187,7 +187,7 @@ Cold starts on Render are mitigated by the cron ping. The GLiNER API is a manage
 
 **Target:** >90% YES rate, proving that vector similarity successfully handles context and defeats keyword-matching ambiguity.
 
-**Judge model:** Gemini from the free tier
+**Judge model:** Cheap model from Groq, leveraging free tier.
 
 **Mandatory tripwire cases:** The eval suite explicitly includes 5–10 ambiguity test cases (e.g., "Apple" in food context vs. tech context, "Python" as language vs. snake). A >90% overall pass rate without correctly handling these specific cases is not considered a pass.
 

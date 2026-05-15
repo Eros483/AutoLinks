@@ -12,15 +12,31 @@ cases such as Apple/fruit vs Apple/company and Python/snake vs Python/language.
 
 import json
 import os
+import re
+from typing import Any, Dict
 
-import httpx
 import requests
+import trafilatura
 
 from backend.utils.config import config
 from backend.utils.logger import logger
 
 API_BASE = os.environ.get("EVAL_API_URL", "http://localhost:8000/api/v1")
 NUM_DRAFTS = 50
+STRICT_JSON_MODELS = {"openai/gpt-oss-20b", "openai/gpt-oss-120b"}
+JUDGE_SCHEMA = {
+    "name": "judge_verdict",
+    "strict": True,
+    "schema": {
+        "type": "object",
+        "properties": {
+            "verdict": {"type": "string", "enum": ["YES", "NO"]},
+            "rationale": {"type": "string"},
+        },
+        "required": ["verdict", "rationale"],
+        "additionalProperties": False,
+    },
+}
 
 evaluation_cases = [
     {
@@ -226,35 +242,108 @@ evaluation_cases = [
 ]
 
 
-def build_judge_messages(draft_text, recommendation):
+def get_groq_client():
+    """Create the official Groq SDK client lazily."""
+    try:
+        from groq import Groq
+    except ImportError as exc:
+        raise ImportError(
+            "The groq package is required for Eval 2. Install it with uv before running this evaluator."
+        ) from exc
+
+    return Groq(api_key=config.groq_api_key)
+
+
+def build_judge_response_format(model: str) -> Dict[str, Any]:
+    """Select the safest structured-output format supported by the configured model."""
+    if model in STRICT_JSON_MODELS:
+        return {
+            "type": "json_schema",
+            "json_schema": JUDGE_SCHEMA,
+        }
+    return {"type": "json_object"}
+
+
+def extract_source_focus(draft_text: str, exact_phrase: str, window: int = 120) -> str:
+    """Extract a short source-side context window around the matched phrase."""
+    lowered_draft = draft_text.lower()
+    lowered_phrase = exact_phrase.lower()
+    start_index = lowered_draft.find(lowered_phrase)
+    if start_index == -1:
+        return draft_text[:window].strip()
+
+    excerpt_start = max(0, start_index - window // 2)
+    excerpt_end = min(len(draft_text), start_index + len(exact_phrase) + window // 2)
+    return draft_text[excerpt_start:excerpt_end].strip()
+
+
+def normalize_excerpt(text: str, max_chars: int = 700) -> str:
+    """Collapse whitespace and trim long excerpts for judge prompts."""
+    collapsed = re.sub(r"\s+", " ", text).strip()
+    if len(collapsed) <= max_chars:
+        return collapsed
+    return collapsed[: max_chars - 3].rstrip() + "..."
+
+
+def fetch_target_page_excerpt(
+    url: str, target_excerpt_cache: Dict[str, str], max_chars: int = 700
+) -> str:
+    """Fetch and cache a readable excerpt from the target URL for judge context."""
+    if url in target_excerpt_cache:
+        return target_excerpt_cache[url]
+
+    try:
+        response = requests.get(url, timeout=20)
+        response.raise_for_status()
+        extracted_text = trafilatura.extract(response.text) or ""
+        excerpt = normalize_excerpt(extracted_text, max_chars=max_chars)
+        target_excerpt_cache[url] = excerpt
+        return excerpt
+    except Exception as exc:
+        logger.warning("Failed to fetch target page excerpt for %s: %s", url, exc)
+        target_excerpt_cache[url] = ""
+        return ""
+
+
+def build_judge_messages(
+    draft_text: str,
+    recommendation: Dict[str, Any],
+    target_page_excerpt: str = "",
+) -> list[Dict[str, str]]:
     """Build the LLM-as-a-judge prompt for one recommendation."""
+    source_focus = extract_source_focus(draft_text, recommendation["exact_phrase"])
+    target_chunk = normalize_excerpt(recommendation.get("context_snippet", ""))
+    target_page_context = target_page_excerpt or "Unavailable"
+
     return [
         {
             "role": "system",
             "content": (
-                "You are grading an internal-link recommendation. "
-                "Return strict JSON with keys verdict and rationale. "
-                "verdict must be either YES or NO. "
-                "Say YES only if the suggested resource is semantically accurate "
-                "and highly helpful for the source context."
+                "You are grading an internal-link recommendation for semantic precision. "
+                "Decide whether the suggested destination is semantically accurate and highly helpful "
+                "for the source context. Return JSON only with keys verdict and rationale. "
+                "verdict must be YES or NO. Be strict and prefer NO if the match is vague, off-topic, "
+                "or only loosely related."
             ),
         },
         {
             "role": "user",
             "content": (
                 "Evaluate this internal-link recommendation.\n\n"
-                f"Source draft context: {draft_text}\n"
-                f"Exact phrase: {recommendation['exact_phrase']}\n"
+                f"Full source draft: {draft_text}\n"
+                f"Source focus excerpt: {source_focus}\n"
+                f"Exact phrase selected for linking: {recommendation['exact_phrase']}\n"
                 f"Suggested URL: {recommendation['suggested_url']}\n"
-                f"Suggested resource snippet: {recommendation['context_snippet']}\n\n"
-                "Respond with JSON like "
+                f"Target chunk snippet from retrieval: {target_chunk}\n"
+                f"Additional target-page excerpt: {target_page_context}\n\n"
+                "Respond as JSON like "
                 '{"verdict":"YES","rationale":"short explanation"}'
             ),
         },
     ]
 
 
-def parse_judge_response(content):
+def parse_judge_response(content: Any) -> Dict[str, str]:
     """Parse the Groq judge response into a stable verdict payload."""
     if isinstance(content, dict):
         payload = content
@@ -270,28 +359,25 @@ def parse_judge_response(content):
     return {"verdict": verdict, "rationale": rationale}
 
 
-def judge_recommendation(draft_text, recommendation):
+def judge_recommendation(
+    groq_client,
+    draft_text: str,
+    recommendation: Dict[str, Any],
+    target_page_excerpt: str = "",
+) -> Dict[str, str]:
     """Ask Groq to judge whether a recommendation is semantically helpful."""
-    headers = {
-        "Authorization": f"Bearer {config.groq_api_key}",
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "model": config.groq_model,
-        "messages": build_judge_messages(draft_text, recommendation),
-        "temperature": 0,
-        "response_format": "json",
-    }
-
-    response = httpx.post(
-        config.groq_url,
-        json=payload,
-        headers=headers,
-        timeout=30.0,
+    response = groq_client.chat.completions.create(
+        model=config.groq_model,
+        messages=build_judge_messages(
+            draft_text,
+            recommendation,
+            target_page_excerpt=target_page_excerpt,
+        ),
+        temperature=0,
+        response_format=build_judge_response_format(config.groq_model),
     )
-    response.raise_for_status()
-    result = response.json()
-    content = result.get("choices", [{}])[0].get("message", {}).get("content", "{}")
+
+    content = response.choices[0].message.content or "{}"
     verdict = parse_judge_response(content)
     logger.info(
         "Groq judge verdict=%s url=%s",
@@ -301,7 +387,7 @@ def judge_recommendation(draft_text, recommendation):
     return verdict
 
 
-def fetch_recommendations(draft_text):
+def fetch_recommendations(draft_text: str) -> list[Dict[str, Any]]:
     """Fetch recommendations from the running API server for one draft."""
     response = requests.post(
         f"{API_BASE}/recommend",
@@ -322,6 +408,9 @@ def run_precision_evaluation():
 
     response = requests.get(f"{API_BASE}/health", timeout=30)
     response.raise_for_status()
+
+    groq_client = get_groq_client()
+    target_excerpt_cache: Dict[str, str] = {}
 
     judged_recommendations = 0
     yes_count = 0
@@ -346,8 +435,18 @@ def run_precision_evaluation():
             drafts_with_recommendations += 1
 
         for recommendation in recommendations:
+            target_excerpt = fetch_target_page_excerpt(
+                recommendation["suggested_url"],
+                target_excerpt_cache,
+            )
+
             try:
-                verdict = judge_recommendation(draft_text, recommendation)
+                verdict = judge_recommendation(
+                    groq_client,
+                    draft_text,
+                    recommendation,
+                    target_page_excerpt=target_excerpt,
+                )
             except Exception as exc:
                 logger.error(
                     "Eval 2 judge error draft=%s url=%s error=%s",

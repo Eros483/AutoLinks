@@ -1,14 +1,14 @@
 {
   "project": "AutoLinks",
-  "last_updated": "2026-05-04",
+  "last_updated": "2026-05-15",
   "summary": {
-    "total": 17,
-    "completed": 17,
+    "total": 18,
+    "completed": 18,
     "in_progress": 0,
     "planned": 0,
     "tests_passing": 13,
     "tests_failing": 0,
-    "tests_missing": 6
+    "tests_missing": 5
   },
   "features": [
     {
@@ -319,6 +319,24 @@
       "notes": "GET /api/v1/link-graph returns the in-memory inbound-link counts used by the reranker, which keeps the equity eval aligned with the API process instead of a disconnected local module import.",
       "added": "2026-05-04",
       "completed": "2026-05-04"
+    },
+    {
+      "id": "F018",
+      "name": "AI Precision (LLM-as-a-Judge) Evaluation",
+      "description": "Use Groq as an LLM judge to score whether each recommendation is semantically accurate and highly helpful, with separate reporting for ambiguity tripwire cases.",
+      "status": "completed",
+      "priority": "high",
+      "module": "backend/eval/eval_precision.py",
+      "design_doc": "docs/design.md",
+      "tests": {
+        "status": "completed",
+        "files": ["backend/tests/test_eval/test_eval_precision.py"],
+        "notes": "Tests cover Groq structured-output format selection, richer judge prompt construction, and SDK-based verdict parsing."
+      },
+      "subtasks": [],
+      "notes": "Eval 2 now uses the official Groq Python SDK, falls back to JSON object mode for unsupported models, and enriches judgment with cached target-page excerpts plus source focus context.",
+      "added": "2026-05-15",
+      "completed": "2026-05-15"
     }
   ]
 }
