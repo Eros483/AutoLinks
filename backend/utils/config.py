@@ -27,6 +27,11 @@ class Settings(BaseSettings):
     # GLiNER
     gliner_url: str = "https://api.pioneer.ai/v1/chat/completions"
 
+    # Groq Judge
+    groq_api_key: str = ""
+    groq_url: str = "https://api.groq.com/openai/v1/chat/completions"
+    groq_model: str = "llama-3.3-70b-versatile"
+
     # Qdrant
     qdrant_collection: str = "articles"
 

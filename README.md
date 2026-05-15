@@ -205,6 +205,14 @@ python -m eval.eval_latency
 
 Measures total round-trip time across 50 sequential requests. Target: under 3 seconds. Reports mean, median, P95, P99 latencies.
 
+**Latest latency benchmark result**  
+Run date: `2026-05-15`
+- Requests: `50/50` successful
+- Mean latency: `1529.32 ms`
+- Max latency: `4103 ms`
+- Target: `< 3000 ms`
+- Outcome: average performance is comfortably within target, but the worst-case request still exceeded the 3-second ceiling
+
 ### Eval 4 - Link Equity Distribution
 
 ```bash
