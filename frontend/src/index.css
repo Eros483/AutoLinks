@@ -449,6 +449,144 @@ body {
   min-height: 156px;
 }
 
+.al-sitemap-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.al-sitemap-hero,
+.al-sitemap-status-card,
+.al-sitemap-form-card {
+  background: var(--sf);
+  border: 1px solid var(--hl);
+  border-radius: var(--r-app);
+}
+
+.al-sitemap-hero {
+  padding: 24px 28px;
+}
+
+.al-sitemap-title {
+  max-width: 18ch;
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  line-height: 0.96;
+  letter-spacing: -0.05em;
+  margin-bottom: 14px;
+}
+
+.al-sitemap-copy,
+.al-sitemap-note,
+.al-sitemap-metric {
+  color: var(--ink-m);
+  line-height: 1.7;
+}
+
+.al-sitemap-copy {
+  max-width: 68ch;
+}
+
+.al-sitemap-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.95fr) minmax(0, 1.35fr);
+  gap: 16px;
+}
+
+.al-sitemap-status-card,
+.al-sitemap-form-card {
+  padding: 20px;
+}
+
+.al-sitemap-status-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.al-sitemap-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 12px;
+  border-radius: var(--r-full);
+  border: 1px solid var(--hl);
+  font-size: var(--t-body-sm);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.al-sitemap-pill.ready {
+  background: color-mix(in srgb, var(--ac-hl) 78%, var(--sf));
+  color: var(--ac);
+}
+
+.al-sitemap-pill.empty {
+  background: var(--canvas);
+  color: var(--ink-m);
+}
+
+.al-sitemap-form-title {
+  max-width: 26ch;
+  font-size: 1.45rem;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  margin-bottom: 16px;
+}
+
+.al-sitemap-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.al-sitemap-label {
+  font-size: var(--t-body-sm);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.al-sitemap-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--hl);
+  border-radius: var(--r-md);
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: 'Instrument Sans', system-ui, sans-serif;
+  font-size: var(--t-body);
+  outline: none;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.al-sitemap-input:focus {
+  border-color: var(--ac);
+  background: var(--sf);
+}
+
+.al-sitemap-input::placeholder {
+  color: var(--ink-s);
+}
+
+.al-sitemap-feedback {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  font-size: var(--t-body-sm);
+  line-height: 1.6;
+}
+
+.al-sitemap-feedback.success {
+  background: color-mix(in srgb, var(--gm) 12%, var(--sf));
+  border: 1px solid color-mix(in srgb, var(--gm) 30%, var(--hl));
+  color: var(--ink);
+}
+
+.al-sitemap-feedback.error {
+  background: color-mix(in srgb, #d95c49 10%, var(--sf));
+  border: 1px solid color-mix(in srgb, #d95c49 28%, var(--hl));
+  color: var(--ink);
+}
+
 /* Two-Panel Layout */
 .al-layout {
   flex: 1;
@@ -766,7 +904,8 @@ body {
   .al-hero,
   .al-feature-grid,
   .al-flow-list,
-  .al-faq-grid {
+  .al-faq-grid,
+  .al-sitemap-grid {
     grid-template-columns: 1fr;
   }
 

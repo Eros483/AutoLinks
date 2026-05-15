@@ -4,6 +4,7 @@ import { useStore } from '../store/store'
 const navItems = [
   { id: 'home', label: 'Home' },
   { id: 'workspace', label: 'Workspace' },
+  { id: 'sitemap', label: 'Sitemaps' },
   { id: 'faq', label: 'FAQs' },
 ]
 

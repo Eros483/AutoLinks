@@ -1,0 +1,134 @@
+import { useEffect, useState } from 'react'
+import { fetchSitemapStatus, ingestSitemap } from '../services/api'
+
+function SitemapPage() {
+  const [sitemapUrl, setSitemapUrl] = useState('')
+  const [statusLoading, setStatusLoading] = useState(true)
+  const [statusError, setStatusError] = useState('')
+  const [hasSitemap, setHasSitemap] = useState(false)
+  const [urlCount, setUrlCount] = useState(0)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
+  const [submitMessage, setSubmitMessage] = useState('')
+
+  const loadStatus = async () => {
+    setStatusLoading(true)
+    setStatusError('')
+
+    try {
+      const result = await fetchSitemapStatus()
+      setHasSitemap(result.hasSitemap)
+      setUrlCount(result.urlCount)
+    } catch (err) {
+      setStatusError(err.message)
+      setHasSitemap(false)
+      setUrlCount(0)
+    } finally {
+      setStatusLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadStatus()
+  }, [])
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+
+    if (!sitemapUrl.trim()) {
+      setSubmitError('Add a sitemap XML URL before starting a crawl.')
+      return
+    }
+
+    setSubmitting(true)
+    setSubmitError('')
+    setSubmitMessage('')
+
+    try {
+      const result = await ingestSitemap(sitemapUrl.trim())
+      setSubmitMessage(`Crawl started successfully. Indexed ${result.chunksIngested} pages from the sitemap.`)
+      await loadStatus()
+    } catch (err) {
+      setSubmitError(err.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="al-page al-sitemap-page">
+      <section className="al-sitemap-hero">
+        <div className="al-section-label">Sitemap Control</div>
+        <h1 className="al-sitemap-title">Check whether a sitemap XML is loaded, then submit a new one to crawl.</h1>
+        <p className="al-sitemap-copy">
+          This page uses the current indexed link graph as the status signal. If URLs have already
+          been loaded into the crawler, AutoLinks treats that as an active sitemap-backed corpus.
+        </p>
+      </section>
+
+      <div className="al-sitemap-grid">
+        <section className="al-surface-card al-sitemap-status-card">
+          <div className="al-section-label">Current Status</div>
+          {statusLoading ? (
+            <p className="al-sitemap-note">Checking the crawler state...</p>
+          ) : statusError ? (
+            <div className="al-sitemap-feedback error">{statusError}</div>
+          ) : (
+            <>
+              <div className={`al-sitemap-pill ${hasSitemap ? 'ready' : 'empty'}`}>
+                {hasSitemap ? 'XML loaded' : 'No XML loaded'}
+              </div>
+              <p className="al-sitemap-metric">
+                {hasSitemap
+                  ? `${urlCount} indexed URLs are currently available for semantic search.`
+                  : 'No indexed URLs are available yet, so the crawler has not loaded a sitemap-backed corpus.'}
+              </p>
+              <button
+                className="al-cta al-secondary-cta"
+                type="button"
+                onClick={loadStatus}
+              >
+                Refresh Status
+              </button>
+            </>
+          )}
+        </section>
+
+        <section className="al-surface-card al-sitemap-form-card">
+          <div className="al-section-label">Upload New XML</div>
+          <h2 className="al-sitemap-form-title">Point AutoLinks at a sitemap XML and kick off a fresh crawl.</h2>
+          <form className="al-sitemap-form" onSubmit={handleSubmit}>
+            <label className="al-sitemap-label" htmlFor="sitemap-url">
+              Sitemap XML URL
+            </label>
+            <input
+              id="sitemap-url"
+              className="al-sitemap-input"
+              type="url"
+              value={sitemapUrl}
+              onChange={(e) => setSitemapUrl(e.target.value)}
+              placeholder="https://example.com/post-sitemap.xml"
+            />
+            <button
+              className="al-cta al-primary-cta"
+              type="submit"
+              disabled={submitting}
+            >
+              {submitting ? 'Starting Crawl...' : 'Crawl New XML'}
+            </button>
+          </form>
+
+          {submitMessage ? <div className="al-sitemap-feedback success">{submitMessage}</div> : null}
+          {submitError ? <div className="al-sitemap-feedback error">{submitError}</div> : null}
+
+          <p className="al-sitemap-note">
+            The frontend submits directly to `POST /api/v1/ingest/sitemap`, so this is the UI
+            shortcut for the same direct API workflow.
+          </p>
+        </section>
+      </div>
+    </div>
+  )
+}
+
+export default SitemapPage

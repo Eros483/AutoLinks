@@ -2,11 +2,11 @@
   "project": "AutoLinks",
   "last_updated": "2026-05-15",
   "summary": {
-    "total": 18,
-    "completed": 18,
+    "total": 19,
+    "completed": 19,
     "in_progress": 0,
     "planned": 0,
-    "tests_passing": 13,
+    "tests_passing": 14,
     "tests_failing": 0,
     "tests_missing": 5
   },
@@ -335,6 +335,24 @@
       },
       "subtasks": [],
       "notes": "Eval 2 now uses the official Groq Python SDK, falls back to JSON object mode for unsupported models, and enriches judgment with cached target-page excerpts plus source focus context.",
+      "added": "2026-05-15",
+      "completed": "2026-05-15"
+    },
+    {
+      "id": "F019",
+      "name": "Frontend Sitemap Management Page",
+      "description": "Add a dedicated frontend view that shows whether sitemap-backed URLs are currently loaded and lets the user submit a new sitemap XML crawl directly from the UI.",
+      "status": "completed",
+      "priority": "high",
+      "module": "frontend/src/components/SitemapPage.jsx",
+      "design_doc": "docs/frontend-design.md",
+      "tests": {
+        "status": "completed",
+        "files": ["frontend/src/services/api.test.js"],
+        "notes": "Service-level tests cover sitemap status mapping from the link-graph endpoint and direct sitemap ingest request payloads."
+      },
+      "subtasks": [],
+      "notes": "The page infers active sitemap status from the current indexed link graph, offers a direct XML URL submission flow to POST /api/v1/ingest/sitemap, and adds first-class navigation from the app shell.",
       "added": "2026-05-15",
       "completed": "2026-05-15"
     }

@@ -3,6 +3,7 @@ import Header from './components/Header'
 import LandingPage from './components/LandingPage'
 import Layout from './components/Layout'
 import FaqPage from './components/FaqPage'
+import SitemapPage from './components/SitemapPage'
 
 function App() {
   const [currentView, setCurrentView] = useState('home')
@@ -14,6 +15,10 @@ function App() {
 
     if (currentView === 'faq') {
       return <FaqPage />
+    }
+
+    if (currentView === 'sitemap') {
+      return <SitemapPage />
     }
 
     return <LandingPage onNavigate={setCurrentView} />
