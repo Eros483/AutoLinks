@@ -46,6 +46,8 @@
 - **Semantic Search** - Vector similarity search using all-MiniLM-L6-v2 embeddings
 - **Equity-Aware Ranking** - Re-ranks recommendations to prioritize orphan pages
 - **Sitemap Ingestion** - Crawl and index articles from any sitemap URL
+- **Graph Diagnostics** - Logs orphan counts, top inbound URLs, and skipped sitemap targets for debugging link-graph quality
+- **Synthetic Equity Eval** - Deterministic benchmark mode for testing equity improvements without relying on a real sitemap
 - **REST API** - FastAPI-based API with automatic OpenAPI documentation
 - **React Frontend** - Modern UI for testing link recommendations
 
@@ -211,6 +213,24 @@ python -m eval.eval_equity
 ```
 
 Compares α=1.0 (baseline, pure similarity) vs α=0.7 (equity-aware) across 50 drafts. Computes Gini coefficient and orphan reduction rate to verify equity-aware re-ranking distributes links intelligently.
+
+For unreliable real-world sitemaps, there is also a synthetic benchmark mode:
+
+```bash
+cd backend
+DEBUG=false PYTHONPATH=. python -m eval.eval_equity --mode synthetic
+```
+
+The synthetic mode builds a deterministic constrained link graph with orphan, low-link, mid-link, and highly linked pages, then evaluates the same reranking logic against controlled candidate pools. This makes it possible to measure equity behavior even when a sitemap produces a noisy or unrealistic internal-link graph.
+
+**Latest synthetic benchmark result**
+- Baseline Gini: `0.6734`
+- Equity-aware Gini: `0.5382`
+- Absolute Gini reduction: `0.1352`
+- Relative Gini reduction: `20.08%`
+- Orphan reduction: `0.00%` -> `100.00%`
+
+The live sitemap-backed eval now also logs graph diagnostics, including orphan counts, top inbound URLs, unmatched internal-link targets, and rescued orphan samples, so it is easier to tell whether poor results come from the reranker or from the source link graph itself.
 
 **Environment Variable:** Set `EVAL_API_URL` to override default `http://localhost:8000/api/v1`
 

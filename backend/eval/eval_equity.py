@@ -9,7 +9,9 @@ Target: Equity-aware system achieves lower Gini coefficient and higher orphan
 reduction than pure similarity baseline while maintaining >90% semantic accuracy.
 """
 
+import argparse
 import os
+import random
 
 import requests
 from backend.utils.logger import logger
@@ -17,6 +19,7 @@ from backend.utils.logger import logger
 API_BASE = os.environ.get("EVAL_API_URL", "http://localhost:8000/api/v1")
 NUM_DRAFTS = 50
 EVAL_MIN_SIMILARITY = 0.0
+SYNTHETIC_SEED = 42
 
 
 test_drafts = [
@@ -169,12 +172,271 @@ def summarize_graph_distribution(link_graph):
     }
 
 
+def build_synthetic_link_graph(
+    total_urls=200,
+    orphan_ratio=0.15,
+    low_ratio=0.35,
+    mid_ratio=0.30,
+    seed=SYNTHETIC_SEED,
+):
+    """Build a deterministic synthetic graph with controlled link inequity."""
+    rng = random.Random(seed)
+    orphan_count = max(1, int(total_urls * orphan_ratio))
+    low_count = max(1, int(total_urls * low_ratio))
+    mid_count = max(1, int(total_urls * mid_ratio))
+    high_count = max(1, total_urls - orphan_count - low_count - mid_count)
+
+    graph = {}
+    current_index = 1
+
+    for _ in range(orphan_count):
+        graph[f"https://synthetic.test/article-{current_index:03d}"] = 0
+        current_index += 1
+
+    for _ in range(low_count):
+        graph[f"https://synthetic.test/article-{current_index:03d}"] = rng.randint(1, 3)
+        current_index += 1
+
+    for _ in range(mid_count):
+        graph[f"https://synthetic.test/article-{current_index:03d}"] = rng.randint(
+            4, 12
+        )
+        current_index += 1
+
+    for _ in range(high_count):
+        graph[f"https://synthetic.test/article-{current_index:03d}"] = rng.randint(
+            25, 80
+        )
+        current_index += 1
+
+    return graph
+
+
+def score_url_for_alpha(similarity_score, inbound_links, alpha):
+    """Mirror the production equity formula for synthetic evaluation."""
+    equity_need = 1 / (1 + inbound_links)
+    return alpha * similarity_score + (1 - alpha) * equity_need
+
+
+def generate_synthetic_candidate_batches(
+    link_graph,
+    num_drafts=NUM_DRAFTS,
+    candidates_per_draft=12,
+    seed=SYNTHETIC_SEED,
+):
+    """Generate deterministic draft candidate pools with equity tradeoffs baked in."""
+    rng = random.Random(seed)
+    orphan_urls = [url for url, count in link_graph.items() if count == 0]
+    low_urls = [url for url, count in link_graph.items() if 1 <= count <= 3]
+    mid_urls = [url for url, count in link_graph.items() if 4 <= count <= 12]
+    high_urls = [url for url, count in link_graph.items() if count >= 25]
+
+    candidate_batches = []
+    for draft_index in range(num_drafts):
+        draft_candidates = []
+        used_urls = set()
+
+        candidate_plan = [
+            (high_urls, (0.93, 0.99), 3),
+            (mid_urls, (0.84, 0.92), 3),
+            (low_urls, (0.76, 0.88), 3),
+            (orphan_urls, (0.68, 0.82), 3),
+        ]
+
+        for url_pool, score_range, target_count in candidate_plan:
+            if not url_pool:
+                continue
+
+            available_urls = [url for url in url_pool if url not in used_urls]
+            sample_count = min(target_count, len(available_urls))
+            if sample_count == 0:
+                continue
+
+            sampled_urls = rng.sample(available_urls, sample_count)
+            for url in sampled_urls:
+                used_urls.add(url)
+                draft_candidates.append(
+                    {
+                        "url": url,
+                        "score": round(rng.uniform(*score_range), 4),
+                        "draft_index": draft_index,
+                    }
+                )
+
+        remaining_urls = [url for url in link_graph if url not in used_urls]
+        while len(draft_candidates) < candidates_per_draft and remaining_urls:
+            url = rng.choice(remaining_urls)
+            remaining_urls.remove(url)
+            draft_candidates.append(
+                {
+                    "url": url,
+                    "score": round(rng.uniform(0.70, 0.90), 4),
+                    "draft_index": draft_index,
+                }
+            )
+
+        candidate_batches.append(draft_candidates[:candidates_per_draft])
+
+    return candidate_batches
+
+
+def select_synthetic_recommendations(
+    candidate_batches,
+    link_graph,
+    alpha,
+    recommendations_per_draft=5,
+):
+    """Select top URLs per draft from synthetic candidate pools."""
+    recommended_urls = []
+    drafts_with_recommendations = 0
+
+    for candidates in candidate_batches:
+        ranked_candidates = sorted(
+            candidates,
+            key=lambda candidate: score_url_for_alpha(
+                candidate["score"], link_graph[candidate["url"]], alpha
+            ),
+            reverse=True,
+        )
+        selected_urls = [
+            candidate["url"]
+            for candidate in ranked_candidates[:recommendations_per_draft]
+        ]
+        if selected_urls:
+            drafts_with_recommendations += 1
+        recommended_urls.extend(selected_urls)
+
+    return recommended_urls, drafts_with_recommendations
+
+
 def fetch_link_graph():
     """Fetch the active link graph from the running API server."""
     response = requests.get(f"{API_BASE}/link-graph", timeout=30)
     response.raise_for_status()
     payload = response.json()
     return payload.get("link_graph", {})
+
+
+def emit_equity_report(
+    link_graph,
+    baseline_recommendations,
+    equity_aware_recommendations,
+    baseline_drafts_with_recommendations,
+    equity_drafts_with_recommendations,
+    mode_label,
+):
+    """Compute metrics and print a shared equity evaluation report."""
+    graph_summary = summarize_graph_distribution(link_graph)
+    logger.info("%s link graph summary: %s", mode_label, graph_summary)
+
+    baseline_projected_graph = apply_recommendations(
+        link_graph, baseline_recommendations
+    )
+    equity_projected_graph = apply_recommendations(
+        link_graph, equity_aware_recommendations
+    )
+
+    baseline_gini = compute_gini(list(baseline_projected_graph.values()))
+    equity_gini = compute_gini(list(equity_projected_graph.values()))
+
+    baseline_orphan_reduction = compute_orphan_reduction(
+        set(baseline_recommendations), link_graph
+    )
+    equity_orphan_reduction = compute_orphan_reduction(
+        set(equity_aware_recommendations), link_graph
+    )
+    orphan_urls = {
+        url for url, inbound_count in link_graph.items() if inbound_count == 0
+    }
+    baseline_rescued_orphans = sorted(orphan_urls & set(baseline_recommendations))
+    equity_rescued_orphans = sorted(orphan_urls & set(equity_aware_recommendations))
+
+    baseline_unique_urls = len(set(baseline_recommendations))
+    equity_unique_urls = len(set(equity_aware_recommendations))
+
+    print("\n" + "=" * 60)
+    print(f"EQUITY DISTRIBUTION EVALUATION RESULTS ({mode_label})")
+    print("=" * 60)
+    print(f"Total Drafts:        {NUM_DRAFTS}")
+    print("-" * 60)
+    print("BASELINE (α = 1.0, pure similarity)")
+    print(
+        f"  Draft Coverage:        {baseline_drafts_with_recommendations}/{NUM_DRAFTS}"
+    )
+    print(f"  Total Recommendations: {len(baseline_recommendations)}")
+    print(f"  Unique URLs:           {baseline_unique_urls}")
+    print(f"  Gini Coefficient:      {baseline_gini:.4f}")
+    print(f"  Orphan Reduction:      {baseline_orphan_reduction:.2%}")
+    print("-" * 60)
+    print("EQUITY-AWARE (α = 0.7)")
+    print(f"  Draft Coverage:        {equity_drafts_with_recommendations}/{NUM_DRAFTS}")
+    print(f"  Total Recommendations: {len(equity_aware_recommendations)}")
+    print(f"  Unique URLs:           {equity_unique_urls}")
+    print(f"  Gini Coefficient:      {equity_gini:.4f}")
+    print(f"  Orphan Reduction:      {equity_orphan_reduction:.2%}")
+    print("-" * 60)
+    print("COMPARISON")
+    print(
+        f"  Gini Improvement:     {baseline_gini - equity_gini:.4f} ({'better' if equity_gini < baseline_gini else 'worse'})"
+    )
+    print(
+        f"  Orphan Lift:          {(equity_orphan_reduction - baseline_orphan_reduction):.2%}"
+    )
+    print(
+        f"  URL Distribution:     {equity_unique_urls - baseline_unique_urls:+d} unique URLs"
+    )
+    print("=" * 60)
+
+    gini_improved = equity_gini < baseline_gini
+    orphan_lifted = equity_orphan_reduction > baseline_orphan_reduction
+
+    if gini_improved and orphan_lifted:
+        print("RESULT: Equity-aware re-ranking SUCCESSFUL")
+    else:
+        print("RESULT: Equity-aware re-ranking needs tuning")
+
+    logger.info(
+        "%s eval complete: gini_improved=%s, orphan_lifted=%s",
+        mode_label,
+        gini_improved,
+        orphan_lifted,
+    )
+    logger.info(
+        "%s orphan diagnostics: total_orphans=%s, baseline_rescued=%s, equity_rescued=%s",
+        mode_label,
+        len(orphan_urls),
+        len(baseline_rescued_orphans),
+        len(equity_rescued_orphans),
+    )
+    if baseline_rescued_orphans:
+        logger.info(
+            "%s baseline rescued orphan sample: %s",
+            mode_label,
+            baseline_rescued_orphans[:5],
+        )
+    if equity_rescued_orphans:
+        logger.info(
+            "%s equity rescued orphan sample: %s",
+            mode_label,
+            equity_rescued_orphans[:5],
+        )
+    if not orphan_lifted:
+        logger.warning(
+            "%s: no orphan lift detected. Inspect graph composition and candidate pool constraints.",
+            mode_label,
+        )
+
+    return {
+        "baseline_gini": baseline_gini,
+        "equity_gini": equity_gini,
+        "baseline_orphan_reduction": baseline_orphan_reduction,
+        "equity_orphan_reduction": equity_orphan_reduction,
+        "baseline_unique_urls": baseline_unique_urls,
+        "equity_unique_urls": equity_unique_urls,
+        "gini_improved": gini_improved,
+        "orphan_lifted": orphan_lifted,
+        "graph_summary": graph_summary,
+    }
 
 
 def run_equity_evaluation():
@@ -190,9 +452,6 @@ def run_equity_evaluation():
     if not link_graph:
         logger.error("Link graph is empty. Ingest a sitemap before running the eval.")
         return
-
-    graph_summary = summarize_graph_distribution(link_graph)
-    logger.info("Initial link graph summary: %s", graph_summary)
 
     baseline_recommendations = []
     equity_aware_recommendations = []
@@ -257,101 +516,87 @@ def run_equity_evaluation():
         logger.error("No recommendations collected - cannot compute metrics")
         return
 
-    baseline_projected_graph = apply_recommendations(
-        link_graph, baseline_recommendations
-    )
-    equity_projected_graph = apply_recommendations(
-        link_graph, equity_aware_recommendations
+    return emit_equity_report(
+        link_graph=link_graph,
+        baseline_recommendations=baseline_recommendations,
+        equity_aware_recommendations=equity_aware_recommendations,
+        baseline_drafts_with_recommendations=baseline_drafts_with_recommendations,
+        equity_drafts_with_recommendations=equity_drafts_with_recommendations,
+        mode_label="Eval 4",
     )
 
-    baseline_gini = compute_gini(list(baseline_projected_graph.values()))
-    equity_gini = compute_gini(list(equity_projected_graph.values()))
 
-    baseline_orphan_reduction = compute_orphan_reduction(
-        set(baseline_recommendations), link_graph
-    )
-    equity_orphan_reduction = compute_orphan_reduction(
-        set(equity_aware_recommendations), link_graph
-    )
-    orphan_urls = {
-        url for url, inbound_count in link_graph.items() if inbound_count == 0
-    }
-    baseline_rescued_orphans = sorted(orphan_urls & set(baseline_recommendations))
-    equity_rescued_orphans = sorted(orphan_urls & set(equity_aware_recommendations))
-
-    baseline_unique_urls = len(set(baseline_recommendations))
-    equity_unique_urls = len(set(equity_aware_recommendations))
-
-    print("\n" + "=" * 60)
-    print("EQUITY DISTRIBUTION EVALUATION RESULTS (Eval 4)")
-    print("=" * 60)
-    print(f"Total Drafts:        {NUM_DRAFTS}")
-    print("-" * 60)
-    print("BASELINE (α = 1.0, pure similarity)")
-    print(
-        f"  Draft Coverage:        {baseline_drafts_with_recommendations}/{NUM_DRAFTS}"
-    )
-    print(f"  Total Recommendations: {len(baseline_recommendations)}")
-    print(f"  Unique URLs:           {baseline_unique_urls}")
-    print(f"  Gini Coefficient:      {baseline_gini:.4f}")
-    print(f"  Orphan Reduction:      {baseline_orphan_reduction:.2%}")
-    print("-" * 60)
-    print("EQUITY-AWARE (α = 0.7)")
-    print(f"  Draft Coverage:        {equity_drafts_with_recommendations}/{NUM_DRAFTS}")
-    print(f"  Total Recommendations: {len(equity_aware_recommendations)}")
-    print(f"  Unique URLs:           {equity_unique_urls}")
-    print(f"  Gini Coefficient:      {equity_gini:.4f}")
-    print(f"  Orphan Reduction:      {equity_orphan_reduction:.2%}")
-    print("-" * 60)
-    print("COMPARISON")
-    print(
-        f"  Gini Improvement:     {baseline_gini - equity_gini:.4f} ({'better' if equity_gini < baseline_gini else 'worse'})"
-    )
-    print(
-        f"  Orphan Lift:          {(equity_orphan_reduction - baseline_orphan_reduction):.2%}"
-    )
-    print(
-        f"  URL Distribution:     {equity_unique_urls - baseline_unique_urls:+d} unique URLs"
-    )
-    print("=" * 60)
-
-    gini_improved = equity_gini < baseline_gini
-    orphan_lifted = equity_orphan_reduction > baseline_orphan_reduction
-
-    if gini_improved and orphan_lifted:
-        print("RESULT: Equity-aware re-ranking SUCCESSFUL")
-    else:
-        print("RESULT: Equity-aware re-ranking needs tuning")
-
+def run_synthetic_equity_evaluation(total_urls=200, seed=SYNTHETIC_SEED):
+    """Run Eval 4 against a synthetic graph and candidate pool."""
     logger.info(
-        f"Equity eval complete: gini_improved={gini_improved}, orphan_lifted={orphan_lifted}"
+        "Starting synthetic equity evaluation: total_urls=%s, drafts=%s, seed=%s",
+        total_urls,
+        NUM_DRAFTS,
+        seed,
     )
-    logger.info(
-        "Orphan diagnostics: total_orphans=%s, baseline_rescued=%s, equity_rescued=%s",
-        len(orphan_urls),
-        len(baseline_rescued_orphans),
-        len(equity_rescued_orphans),
+
+    link_graph = build_synthetic_link_graph(total_urls=total_urls, seed=seed)
+    candidate_batches = generate_synthetic_candidate_batches(
+        link_graph,
+        num_drafts=NUM_DRAFTS,
+        seed=seed,
     )
-    if baseline_rescued_orphans:
-        logger.info("Baseline rescued orphan sample: %s", baseline_rescued_orphans[:5])
-    if equity_rescued_orphans:
-        logger.info("Equity rescued orphan sample: %s", equity_rescued_orphans[:5])
-    if not orphan_lifted:
-        logger.warning(
-            "No orphan lift detected. Inspect link graph summary and skipped-target logs to confirm whether the sitemap corpus produced few actionable orphan URLs or whether internal links are pointing outside the ingested sitemap slice."
+
+    baseline_recommendations, baseline_drafts_with_recommendations = (
+        select_synthetic_recommendations(
+            candidate_batches,
+            link_graph,
+            alpha=1.0,
         )
+    )
+    equity_aware_recommendations, equity_drafts_with_recommendations = (
+        select_synthetic_recommendations(
+            candidate_batches,
+            link_graph,
+            alpha=0.7,
+        )
+    )
 
-    return {
-        "baseline_gini": baseline_gini,
-        "equity_gini": equity_gini,
-        "baseline_orphan_reduction": baseline_orphan_reduction,
-        "equity_orphan_reduction": equity_orphan_reduction,
-        "baseline_unique_urls": baseline_unique_urls,
-        "equity_unique_urls": equity_unique_urls,
-        "gini_improved": gini_improved,
-        "orphan_lifted": orphan_lifted,
-    }
+    return emit_equity_report(
+        link_graph=link_graph,
+        baseline_recommendations=baseline_recommendations,
+        equity_aware_recommendations=equity_aware_recommendations,
+        baseline_drafts_with_recommendations=baseline_drafts_with_recommendations,
+        equity_drafts_with_recommendations=equity_drafts_with_recommendations,
+        mode_label="Synthetic Eval 4",
+    )
+
+
+def parse_args():
+    """Parse command-line flags for live vs synthetic evaluation."""
+    parser = argparse.ArgumentParser(description="Run AutoLinks equity evaluation")
+    parser.add_argument(
+        "--mode",
+        choices=["live", "synthetic"],
+        default="live",
+        help="Use the live API-backed graph or a deterministic synthetic graph.",
+    )
+    parser.add_argument(
+        "--synthetic-urls",
+        type=int,
+        default=200,
+        help="Number of synthetic URLs to generate in synthetic mode.",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=SYNTHETIC_SEED,
+        help="Random seed for synthetic graph and candidate generation.",
+    )
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
-    run_equity_evaluation()
+    args = parse_args()
+    if args.mode == "synthetic":
+        run_synthetic_equity_evaluation(
+            total_urls=args.synthetic_urls,
+            seed=args.seed,
+        )
+    else:
+        run_equity_evaluation()

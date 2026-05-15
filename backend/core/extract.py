@@ -49,7 +49,7 @@ def extract_entities(text: str) -> List[Dict[str, Any]]:
 
             content = json.loads(content)
 
-        entities_map = content.get("entities", {})
+        entities_map = content.get("data", {}).get("entities", {})
         results = []
         for label, matches in entities_map.items():
             for match in matches:
