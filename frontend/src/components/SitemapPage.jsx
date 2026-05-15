@@ -120,11 +120,6 @@ function SitemapPage() {
 
           {submitMessage ? <div className="al-sitemap-feedback success">{submitMessage}</div> : null}
           {submitError ? <div className="al-sitemap-feedback error">{submitError}</div> : null}
-
-          <p className="al-sitemap-note">
-            The frontend submits directly to `POST /api/v1/ingest/sitemap`, so this is the UI
-            shortcut for the same direct API workflow.
-          </p>
         </section>
       </div>
     </div>
