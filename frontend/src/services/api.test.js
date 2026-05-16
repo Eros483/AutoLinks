@@ -1,9 +1,19 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fetchSitemapStatus, ingestSitemap } from './api'
+import {
+  buildApiUrl,
+  fetchSitemapStatus,
+  ingestSitemap,
+} from './api'
 
 describe('sitemap api helpers', () => {
   afterEach(() => {
     vi.restoreAllMocks()
+  })
+
+  it('builds api urls from the configured frontend env', () => {
+    expect(buildApiUrl('/health', { VITE_API_BASE_URL: 'http://localhost:9000/api/v1/' })).toBe(
+      'http://localhost:9000/api/v1/health',
+    )
   })
 
   it('maps link graph data into sitemap status', async () => {

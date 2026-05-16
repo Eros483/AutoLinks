@@ -109,11 +109,17 @@ npm install
 npm run dev
 ```
 
-The frontend runs on `http://localhost:3000` and connects to the backend at `http://127.0.0.1:8000/api/v1`.
+The frontend runs on `http://localhost:3000` and reads the backend API base URL from the repo-root `.env` file using `VITE_API_BASE_URL`.
 
 **Environment Requirements:**
-- Backend must be running at `http://127.0.0.1:8000` (or update `BASE_URL` in `frontend/src/services/api.js`)
+- Backend must be running at the URL configured in `VITE_API_BASE_URL`
 - Qdrant must be running for the backend to return recommendations
+
+Example local setting:
+
+```bash
+VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
+```
 
 ### 6. Run Tests
 

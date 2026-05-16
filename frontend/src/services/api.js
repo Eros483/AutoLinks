@@ -1,7 +1,17 @@
-const BASE_URL = 'http://127.0.0.1:8000/api/v1'
+const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8000/api/v1'
+
+export function getApiBaseUrl(env = import.meta.env) {
+  const apiBaseUrl = env?.VITE_API_BASE_URL || DEFAULT_API_BASE_URL
+  return apiBaseUrl.replace(/\/$/, '')
+}
+
+export function buildApiUrl(path, env = import.meta.env) {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  return `${getApiBaseUrl(env)}${normalizedPath}`
+}
 
 export async function fetchRecommendations(text, alpha = 0.7, minSimilarity = 0.65) {
-  const response = await fetch(`${BASE_URL}/recommend`, {
+  const response = await fetch(buildApiUrl('/recommend'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -26,7 +36,7 @@ export async function fetchRecommendations(text, alpha = 0.7, minSimilarity = 0.
 }
 
 export async function fetchSitemapStatus() {
-  const response = await fetch(`${BASE_URL}/link-graph`)
+  const response = await fetch(buildApiUrl('/link-graph'))
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
@@ -42,7 +52,7 @@ export async function fetchSitemapStatus() {
 }
 
 export async function ingestSitemap(sitemapUrl, maxConcurrent = 5) {
-  const response = await fetch(`${BASE_URL}/ingest/sitemap`, {
+  const response = await fetch(buildApiUrl('/ingest/sitemap'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

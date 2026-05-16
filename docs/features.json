@@ -349,10 +349,10 @@
       "tests": {
         "status": "completed",
         "files": ["frontend/src/services/api.test.js"],
-        "notes": "Service-level tests cover sitemap status mapping from the link-graph endpoint and direct sitemap ingest request payloads."
+        "notes": "Service-level tests cover env-driven API URL construction, sitemap status mapping from the link-graph endpoint, and direct sitemap ingest request payloads."
       },
       "subtasks": [],
-      "notes": "The page infers active sitemap status from the current indexed link graph, offers a direct XML URL submission flow to POST /api/v1/ingest/sitemap, and adds first-class navigation from the app shell.",
+      "notes": "The page infers active sitemap status from the current indexed link graph, offers a direct XML URL submission flow to POST /api/v1/ingest/sitemap, and now reads the backend API base URL from the repo-root .env via Vite so local or hosted backend targets can be swapped without source edits.",
       "added": "2026-05-15",
       "completed": "2026-05-15"
     }
