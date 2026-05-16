@@ -31,7 +31,7 @@ def test_create_qdrant_client_uses_local_url_without_api_key(monkeypatch):
 
 
 def test_create_qdrant_client_includes_api_key_when_present(monkeypatch):
-    """Test hosted Qdrant config still passes the API key."""
+    """Test hosted Qdrant config passes the API key and cloud port."""
     captured_kwargs = {}
 
     def fake_client(**kwargs):
@@ -50,7 +50,36 @@ def test_create_qdrant_client_includes_api_key_when_present(monkeypatch):
     create_qdrant_client()
 
     assert captured_kwargs == {
-        "url": "https://example.qdrant.io",
+        "url": "https://example.qdrant.io:6333",
+        "api_key": "secret-key",
+    }
+
+
+def test_create_qdrant_client_keeps_explicit_cloud_port(monkeypatch):
+    """Test hosted Qdrant config preserves an explicitly configured port."""
+    captured_kwargs = {}
+
+    def fake_client(**kwargs):
+        captured_kwargs.update(kwargs)
+        return object()
+
+    from backend.utils.qdrant import create_qdrant_client
+    from backend.utils import qdrant
+
+    monkeypatch.setattr(
+        qdrant, "qdrant_client", SimpleNamespace(QdrantClient=fake_client)
+    )
+    monkeypatch.setattr(
+        qdrant.config,
+        "qdrant_url",
+        "https://example.qdrant.io:6333",
+    )
+    monkeypatch.setattr(qdrant.config, "qdrant_api_key", "secret-key")
+
+    create_qdrant_client()
+
+    assert captured_kwargs == {
+        "url": "https://example.qdrant.io:6333",
         "api_key": "secret-key",
     }
 

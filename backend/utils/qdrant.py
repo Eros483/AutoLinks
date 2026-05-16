@@ -1,5 +1,6 @@
 # ----- Qdrant client utilities @ backend/utils/qdrant.py -----
 from typing import Any, Dict
+from urllib.parse import urlparse, urlunparse
 
 from backend.utils.config import config
 from backend.utils.logger import logger
@@ -12,13 +13,35 @@ except ModuleNotFoundError:
 _client = None
 
 
+def _normalize_qdrant_url(raw_url: str) -> str:
+    """Ensure hosted Qdrant URLs include the expected REST API port."""
+    parsed_url = urlparse(raw_url)
+    if not parsed_url.scheme or not parsed_url.netloc:
+        return raw_url
+
+    if parsed_url.port or parsed_url.hostname in {"localhost", "127.0.0.1"}:
+        return raw_url
+
+    return urlunparse(
+        (
+            parsed_url.scheme,
+            f"{parsed_url.hostname}:6333",
+            parsed_url.path,
+            parsed_url.params,
+            parsed_url.query,
+            parsed_url.fragment,
+        )
+    )
+
+
 def create_qdrant_client():
     """Create a Qdrant client for local or hosted deployments."""
     if qdrant_client is None:
         raise ModuleNotFoundError("qdrant_client is required to create a Qdrant client")
 
-    client_kwargs: Dict[str, Any] = {"url": config.qdrant_url}
-    if config.qdrant_url.startswith("http://localhost") or config.qdrant_url.startswith(
+    normalized_url = _normalize_qdrant_url(config.qdrant_url)
+    client_kwargs: Dict[str, Any] = {"url": normalized_url}
+    if normalized_url.startswith("http://localhost") or normalized_url.startswith(
         "http://127.0.0.1"
     ):
         client_kwargs["check_compatibility"] = False
