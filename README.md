@@ -166,3 +166,8 @@ pytest --cov=. --cov-report=html
 ## License
 
 MIT
+
+---
+
+## Note
+Must use a smaller sitemap for the deployed version, as Render runs into memory issues.
