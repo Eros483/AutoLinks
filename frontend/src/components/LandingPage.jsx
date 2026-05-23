@@ -40,9 +40,6 @@ function LandingPage({ onNavigate }) {
             <button className="al-cta al-primary-cta" onClick={() => onNavigate('workspace')}>
               Open Workspace
             </button>
-            <button className="al-cta al-secondary-cta" onClick={() => onNavigate('faq')}>
-              Read FAQs
-            </button>
           </div>
         </div>
       </section>
