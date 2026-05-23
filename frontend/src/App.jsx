@@ -2,7 +2,6 @@ import { useState } from 'react'
 import Header from './components/Header'
 import LandingPage from './components/LandingPage'
 import Layout from './components/Layout'
-import FaqPage from './components/FaqPage'
 import SitemapPage from './components/SitemapPage'
 
 function App() {
@@ -11,10 +10,6 @@ function App() {
   const renderCurrentView = () => {
     if (currentView === 'workspace') {
       return <Layout />
-    }
-
-    if (currentView === 'faq') {
-      return <FaqPage />
     }
 
     if (currentView === 'sitemap') {
