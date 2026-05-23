@@ -5,8 +5,18 @@ const navItems = [
   { id: 'home', label: 'Home' },
   { id: 'workspace', label: 'Workspace' },
   { id: 'sitemap', label: 'Sitemaps' },
-  { id: 'faq', label: 'FAQs' },
 ]
+
+const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8000/api/v1'
+
+function getApiDocsUrl() {
+  const apiBase = import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL
+  try {
+    return new URL(apiBase).origin + '/docs'
+  } catch {
+    return 'http://127.0.0.1:8000/docs'
+  }
+}
 
 function Header({ currentView, onNavigate }) {
   const [dropdownOpen, setDropdownOpen] = useState(false)
@@ -87,7 +97,7 @@ function Header({ currentView, onNavigate }) {
           ))}
           <a
             className="al-dropdown-item al-dropdown-link"
-            href="http://127.0.0.1:8000/docs"
+            href={getApiDocsUrl()}
             target="_blank"
             rel="noreferrer"
             onClick={() => setDropdownOpen(false)}
