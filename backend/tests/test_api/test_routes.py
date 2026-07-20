@@ -18,10 +18,11 @@ def test_health_endpoint():
     assert data["status"] == "ok"
 
 
-@patch("backend.api.v1.routes.rerank.link_graph", {"https://example.com/a": 0})
+@patch("backend.core.rerank.restore_link_graph")
 @pytest.mark.asyncio
-async def test_link_graph_endpoint_returns_active_graph():
+async def test_link_graph_endpoint_returns_active_graph(mock_restore):
     """Test link graph endpoint exposes the server's active inbound counts."""
+    mock_restore.return_value = {"https://example.com/a": 0}
     response = await get_link_graph()
 
     assert response.status == "success"

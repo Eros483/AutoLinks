@@ -229,8 +229,12 @@ async def health():
 @router.get("/link-graph", response_model=LinkGraphResponse)
 async def get_link_graph():
     """Expose the active inbound-link graph for evaluation and debugging."""
+    from backend.core.rerank import restore_link_graph
+
+    graph = restore_link_graph()
+
     return LinkGraphResponse(
         status="success",
-        url_count=len(rerank.link_graph),
-        link_graph=rerank.link_graph,
+        url_count=len(graph),
+        link_graph=graph,
     )
