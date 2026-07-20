@@ -20,5 +20,5 @@ ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
 
 CMD cd /app/backend && \
-    uv run celery -A backend.core.tasks worker --concurrency=4 --loglevel=info & \
-    uv run uvicorn backend.main:app --host 0.0.0.0 --port 8000
+    .venv/bin/celery -A backend.core.tasks worker --concurrency=4 --loglevel=info & \
+    .venv/bin/uvicorn backend.main:app --host 0.0.0.0 --port 8000
