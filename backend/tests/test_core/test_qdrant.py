@@ -50,7 +50,7 @@ def test_create_qdrant_client_includes_api_key_when_present(monkeypatch):
     create_qdrant_client()
 
     assert captured_kwargs == {
-        "url": "https://example.qdrant.io:6333",
+        "url": "https://example.qdrant.io",
         "api_key": "secret-key",
     }
 

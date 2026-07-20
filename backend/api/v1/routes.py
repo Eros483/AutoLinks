@@ -1,4 +1,5 @@
 # ----- API route handlers @ backend/api/v1/routes.py -----
+import asyncio
 import time
 from fastapi import APIRouter, HTTPException, status
 from backend.core import extract, embed, search, rerank
@@ -13,6 +14,10 @@ from backend.schemas.response import (
     HealthResponse,
     LinkGraphResponse,
     Recommendation,
+    IngestSitemapAsyncResponse,
+    JobStatusResponse,
+    JobResultResponse,
+    RetryDeadResponse,
 )
 from backend.utils.logger import logger
 from backend.utils.config import config
@@ -73,7 +78,7 @@ async def recommend(req: RecommendRequest):
                 break
 
         latency_ms = int((time.time() - start_time) * 1000)
-        logger.info(f"Recommend completed in {latency_ms}ms")
+        logger.info("Recommend completed in %dms", latency_ms)
 
         return RecommendResponse(
             status="success",
@@ -82,7 +87,7 @@ async def recommend(req: RecommendRequest):
         )
 
     except Exception as e:
-        logger.error(f"Recommend error: {e}")
+        logger.error("Recommend error: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )
@@ -97,23 +102,19 @@ async def ingest(req: IngestRequest):
         ingest_article(req.url, req.content)
         return IngestResponse(status="success", chunks_ingested=1)
     except Exception as e:
-        logger.error(f"Ingest error: {e}")
+        logger.error("Ingest error: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )
 
 
-@router.post("/ingest/sitemap", response_model=IngestResponse)
+@router.post("/ingest/sitemap", response_model=IngestSitemapAsyncResponse)
 async def ingest_sitemap(req: IngestSitemapRequest):
-    """Crawl sitemap and ingest all articles."""
+    """Enqueue sitemap ingestion as a background job. Returns immediately."""
     try:
-        from backend.core.ingest import (
-            parse_sitemap,
-            crawl_and_extract,
-            build_link_graph,
-            ingest_article,
-        )
-        from backend.core.rerank import init_link_graph
+        from backend.core.jobs import create_job
+        from backend.core.tasks import crawl_and_ingest_task
+        from backend.core.ingest import parse_sitemap
 
         urls = parse_sitemap(req.sitemap_url)
         if not urls:
@@ -122,31 +123,107 @@ async def ingest_sitemap(req: IngestSitemapRequest):
                 detail="No URLs found in sitemap",
             )
 
-        crawled_pages = await crawl_and_extract(urls, max_concurrent=req.max_concurrent)
-        init_link_graph(build_link_graph(crawled_pages))
+        job_id = create_job(
+            "crawl_sitemap",
+            {
+                "sitemap_url": req.sitemap_url,
+                "max_concurrent": req.max_concurrent,
+            },
+        )
 
-        for url, page_data in crawled_pages.items():
-            ingest_article(url, page_data["text"])
+        crawl_and_ingest_task.delay(
+            job_id=job_id,
+            sitemap_url=req.sitemap_url,
+            max_concurrent=req.max_concurrent,
+        )
 
-        return IngestResponse(status="success", chunks_ingested=len(crawled_pages))
+        logger.info(
+            "Enqueued sitemap ingestion job %s (%d articles)", job_id, len(urls)
+        )
 
+        return IngestSitemapAsyncResponse(
+            job_id=job_id,
+            status="queued",
+            estimated_articles=len(urls),
+        )
     except Exception as e:
-        logger.error(f"Sitemap ingest error: {e}")
+        logger.error("Sitemap ingest enqueue error: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )
 
 
+@router.get("/ingest/status/{job_id}", response_model=JobStatusResponse)
+async def ingest_status(job_id: str):
+    """Get the status and progress of an async ingest job."""
+    from backend.core.jobs import get_job
+
+    job = get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    total = job.get("articles_total", 0)
+    done = job.get("articles_done", 0)
+    progress_pct = round((done / total) * 100, 1) if total > 0 else 0.0
+
+    return JobStatusResponse(
+        status=job.get("status", "unknown"),
+        progress_pct=progress_pct,
+        articles_done=done,
+        total=total,
+        errors=job.get("errors", []),
+    )
+
+
+@router.get("/ingest/result/{job_id}", response_model=JobResultResponse)
+async def ingest_result(job_id: str):
+    """Get the final result of a completed ingest job."""
+    from backend.core.jobs import get_job
+
+    job = get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    return JobResultResponse(
+        status=job.get("status", "unknown"),
+        chunks_ingested=job.get("articles_done", 0),
+        duration_seconds=0.0,
+        errors=job.get("errors", []),
+    )
+
+
+@router.post("/ingest/retry-dead", response_model=RetryDeadResponse)
+async def ingest_retry_dead():
+    """Pop and re-enqueue entries from the dead letter queue."""
+    from backend.core.dlq import pop_dlq_entries
+    from backend.core.tasks import crawl_and_ingest_task
+
+    entries = pop_dlq_entries()
+    retried_job_ids = []
+
+    for entry in entries:
+        job_id = entry["job_id"]
+        args = entry["args"]
+        crawl_and_ingest_task.delay(
+            job_id=job_id,
+            sitemap_url=args["sitemap_url"],
+            max_concurrent=args.get("max_concurrent", 5),
+        )
+        retried_job_ids.append(job_id)
+
+    logger.info("Re-enqueued %d DLQ jobs", len(retried_job_ids))
+    return RetryDeadResponse(
+        retried_count=len(retried_job_ids),
+        job_ids=retried_job_ids,
+    )
+
+
 @router.get("/health", response_model=HealthResponse)
 async def health():
     """Health check endpoint."""
-    try:
-        embed.get_embedding_model()
-        model_loaded = True
-    except Exception:
-        model_loaded = False
+    models_available = bool(config.models_space_url)
 
-    return HealthResponse(status="ok", model_loaded=model_loaded)
+    return HealthResponse(status="ok", model_loaded=models_available)
 
 
 @router.get("/link-graph", response_model=LinkGraphResponse)

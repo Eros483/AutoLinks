@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: uv sync --dev
+        working-directory: backend
+
+      - name: Run tests
+        run: uv run pytest --cov=. --cov-report=term
+        working-directory: backend
+
+      - name: Check formatting
+        run: uv run black --check .
+        working-directory: backend
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Lint
+        run: npm run lint
+        working-directory: frontend
+
+      - name: Test
+        run: npm run test
+        working-directory: frontend

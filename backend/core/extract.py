@@ -1,4 +1,5 @@
-# ----- NER entity extraction @ backend/core/extract.py -----
+# ----- NER entity extraction via HF Space @ backend/core/extract.py -----
+import json
 import re
 from typing import List, Dict, Any
 
@@ -7,10 +8,18 @@ import httpx
 from backend.utils.config import config
 from backend.utils.logger import logger
 
+DEFAULT_ENTITY_LABELS = [
+    "person",
+    "organization",
+    "topic",
+    "technology",
+    "concept",
+]
+
 
 def extract_entities(text: str) -> List[Dict[str, Any]]:
     """
-    Extract named entities from text using GLiNER via Pioneer API.
+    Extract named entities from text using GLiNER2 on HF Space.
 
     Args:
         text: Raw draft text to analyze
@@ -22,50 +31,16 @@ def extract_entities(text: str) -> List[Dict[str, Any]]:
         logger.info("DRY_RUN enabled, returning fixture entities")
         return _get_fixture_entities(text)
 
-    headers = {
-        "Authorization": f"Bearer {config.pioneer_api_key}",
-        "Content-Type": "application/json",
-    }
+    if not config.models_space_url:
+        logger.warning("models_space_url not configured, returning empty")
+        return []
 
-    payload = {
-        "model": "fastino/gliner2-base-v1",
-        "messages": [{"role": "user", "content": text}],
-        "schema": {
-            "entities": ["person", "organization", "topic", "technology", "concept"]
-        },
-        "include_spans": True,
-    }
+    labels_json = json.dumps(DEFAULT_ENTITY_LABELS)
+    result = _call_space("extract_entities", text, labels_json)
+    entities = json.loads(result)
 
-    try:
-        response = httpx.post(
-            config.gliner_url, json=payload, headers=headers, timeout=30.0
-        )
-        response.raise_for_status()
-        result = response.json()
-
-        content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
-        if isinstance(content, str):
-            import json
-
-            content = json.loads(content)
-
-        entities_map = content.get("entities")
-        if entities_map is None:
-            entities_map = content.get("data", {}).get("entities", {})
-
-        results = []
-        for label, matches in entities_map.items():
-            for match in matches:
-                normalized_match = _normalize_entity_match(match, label)
-                if normalized_match["text"]:
-                    results.append(normalized_match)
-
-        logger.info(f"Extracted {len(results)} entities from text")
-        return results
-
-    except httpx.HTTPError as e:
-        logger.error(f"Pioneer API error: {e}")
-        raise
+    logger.info("Extracted %d entities from text", len(entities))
+    return entities
 
 
 def post_process_entities(
@@ -105,9 +80,73 @@ def post_process_entities(
         deduplicated_entities.append(entity)
 
     logger.info(
-        f"Post-processed entities from {len(entities)} to {len(deduplicated_entities)}"
+        "Post-processed entities from %d to %d",
+        len(entities),
+        len(deduplicated_entities),
     )
     return deduplicated_entities
+
+
+def _call_space(endpoint: str, *args: str) -> str:
+    """Call a Gradio Space endpoint and return the JSON string result."""
+    headers = {"Content-Type": "application/json"}
+    if config.hf_token:
+        headers["Authorization"] = f"Bearer {config.hf_token}"
+
+    url = f"{config.models_space_url}/gradio_api/call/{endpoint}"
+
+    response = httpx.post(
+        url,
+        json={"data": list(args)},
+        headers=headers,
+        timeout=60.0,
+    )
+    response.raise_for_status()
+    event_id = response.json()["event_id"]
+
+    result_url = f"{url}/{event_id}"
+    result_text = _poll_result(result_url, headers)
+
+    return _parse_sse_data(result_text)
+
+
+def _poll_result(url: str, headers: dict) -> str:
+    """Poll the event result URL with exponential backoff until completion."""
+    import time
+
+    delay = 0.5
+    max_attempts = 30
+
+    for attempt in range(max_attempts):
+        resp = httpx.get(url, headers=headers, timeout=30.0)
+        resp.raise_for_status()
+        text = resp.text
+
+        if "event: complete" in text or "event: error" in text:
+            return text
+
+        if attempt == 0:
+            logger.info("Waiting for Space result (endpoint: %s)", url)
+        time.sleep(delay)
+        delay = min(delay * 1.5, 5.0)
+
+    raise RuntimeError(f"Timeout waiting for Space result: {url}")
+
+
+def _parse_sse_data(sse_text: str) -> str:
+    """Extract the JSON string from SSE event: complete response."""
+    if "event: error" in sse_text:
+        for line in sse_text.split("\n"):
+            if line.startswith("data:"):
+                error_data = json.loads(line[5:].strip())
+                raise RuntimeError(f"Space error: {error_data.get('error', 'unknown')}")
+
+    for line in sse_text.split("\n"):
+        if line.startswith("data:"):
+            data_str = line[5:].strip()
+            return json.loads(data_str)[0]
+
+    raise RuntimeError(f"Unexpected SSE response: {sse_text[:200]}")
 
 
 def _get_fixture_entities(text: str) -> List[Dict[str, Any]]:
@@ -118,37 +157,6 @@ def _get_fixture_entities(text: str) -> List[Dict[str, Any]]:
         {"text": "gradient descent", "start": 100, "end": 115, "label": "CONCEPT"},
     ]
     return [f for f in fixtures if f["text"].lower() in text.lower()]
-
-
-def _normalize_entity_match(match: Any, label: str) -> Dict[str, Any]:
-    """Normalize Pioneer entity payloads into a consistent internal shape."""
-    if isinstance(match, str):
-        return {
-            "text": match,
-            "start": 0,
-            "end": len(match),
-            "label": label.upper(),
-        }
-
-    if isinstance(match, dict):
-        entity_text = (
-            match.get("text")
-            or match.get("value")
-            or match.get("entity")
-            or match.get("span")
-            or ""
-        )
-        start = match.get("start", 0)
-        end = match.get("end", start + len(entity_text))
-
-        return {
-            "text": entity_text,
-            "start": start,
-            "end": end,
-            "label": label.upper(),
-        }
-
-    return {"text": "", "start": 0, "end": 0, "label": label.upper()}
 
 
 def _normalize_entity_text(text: str) -> str:

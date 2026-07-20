@@ -7,10 +7,11 @@
 
 <center>
 <p>
-  <img src="https://img.shields.io/badge/Python-3.11+-blue.svg" alt="Python">
-  <img src="https://img.shields.io/badge/FastAPI-0.109+-blue.svg" alt="FastAPI">
-  <img src="https://img.shields.io/badge/Qdrant-2.8+-blue.svg" alt="Qdrant">
-  <img src="https://img.shields.io/badge/GLiNER-via%20pioneer.ai-blue.svg" alt="GLiNER">
+  <img src="https://img.shields.io/badge/Python-3.13+-blue.svg" alt="Python">
+  <img src="https://img.shields.io/badge/FastAPI-0.136+-blue.svg" alt="FastAPI">
+  <img src="https://img.shields.io/badge/Qdrant-1.17+-blue.svg" alt="Qdrant">
+  <img src="https://img.shields.io/badge/GLiNER2-HF%20Space-blue.svg" alt="GLiNER2">
+  <a href="https://github.com/anomalyco/AutoLinks/actions"><img src="https://img.shields.io/github/actions/workflow/status/anomalyco/AutoLinks/ci.yml?branch=main" alt="CI"></a>
   <img src="https://img.shields.io/badge/React-18.2-blue.svg" alt="React">
   <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License">
 <!-- Code Quality -->
@@ -145,7 +146,7 @@ pytest --cov=. --cov-report=html
 - Architecture Decisions: [docs/design.md](docs/design.md)
 - Deployment strategies: [docs/deployment.md](docs/deployment.md)
 - Full API usage, request examples, and response shapes: [docs/api.md](docs/api.md)
-- AI Evals: [docs/evals.md](docs/evals.md)
+- AI Evals: [docs/design.md](docs/design.md)
 
 ---
 

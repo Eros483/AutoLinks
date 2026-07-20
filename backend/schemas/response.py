@@ -30,6 +30,40 @@ class IngestResponse(BaseModel):
     chunks_ingested: int
 
 
+class IngestSitemapAsyncResponse(BaseModel):
+    """Response for async /ingest/sitemap endpoint."""
+
+    job_id: str
+    status: str
+    estimated_articles: int = 0
+
+
+class JobStatusResponse(BaseModel):
+    """Response for /ingest/status/{job_id} endpoint."""
+
+    status: str
+    progress_pct: float = 0.0
+    articles_done: int = 0
+    total: int = 0
+    errors: List[str] = []
+
+
+class JobResultResponse(BaseModel):
+    """Response for /ingest/result/{job_id} endpoint."""
+
+    status: str
+    chunks_ingested: int = 0
+    duration_seconds: float = 0.0
+    errors: List[str] = []
+
+
+class RetryDeadResponse(BaseModel):
+    """Response for /ingest/retry-dead endpoint."""
+
+    retried_count: int
+    job_ids: List[str]
+
+
 class HealthResponse(BaseModel):
     """Response for /health endpoint."""
 

@@ -126,7 +126,9 @@ def test_recommend_returns_correct_shape(
     mock_extract,
 ):
     """Test recommend endpoint returns correct response shape."""
-    mock_extract.return_value = [{"text": "AI", "start": 0, "end": 2, "label": "TOPIC"}]
+    mock_extract.return_value = [
+        {"text": "Artificial Intelligence", "start": 0, "end": 23, "label": "TOPIC"}
+    ]
     mock_embed.return_value = [0.1] * 384
     mock_search.return_value = [
         {
@@ -147,7 +149,8 @@ def test_recommend_returns_correct_shape(
     ]
 
     response = client.post(
-        "/api/v1/recommend", json={"text": "AI is changing everything"}
+        "/api/v1/recommend",
+        json={"text": "Artificial Intelligence is changing everything"},
     )
 
     assert response.status_code == 200
@@ -216,36 +219,17 @@ def test_ingest_missing_fields():
     assert response.status_code == 422
 
 
-@patch("backend.core.rerank.init_link_graph")
-@patch("backend.core.ingest.ingest_article")
-@patch("backend.core.ingest.build_link_graph")
-@patch("backend.core.ingest.crawl_and_extract")
+@patch("backend.core.tasks.crawl_and_ingest_task.delay")
+@patch("backend.core.jobs.create_job")
 @patch("backend.core.ingest.parse_sitemap")
-def test_ingest_sitemap_initializes_link_graph(
+def test_ingest_sitemap_enqueues_job(
     mock_parse_sitemap,
-    mock_crawl_and_extract,
-    mock_build_link_graph,
-    mock_ingest_article,
-    mock_init_link_graph,
+    mock_create_job,
+    mock_delay,
 ):
-    """Test sitemap ingest builds and initializes the rerank link graph."""
+    """Test sitemap ingest enqueues a background job and returns job_id."""
     mock_parse_sitemap.return_value = ["https://example.com/a", "https://example.com/b"]
-    mock_crawl_and_extract.return_value = {
-        "https://example.com/a": {
-            "text": "Article A",
-            "html": "<html></html>",
-            "outbound_links": ["https://example.com/b"],
-        },
-        "https://example.com/b": {
-            "text": "Article B",
-            "html": "<html></html>",
-            "outbound_links": [],
-        },
-    }
-    mock_build_link_graph.return_value = {
-        "https://example.com/a": 0,
-        "https://example.com/b": 1,
-    }
+    mock_create_job.return_value = "test-job-uuid-123"
 
     response = client.post(
         "/api/v1/ingest/sitemap",
@@ -253,7 +237,7 @@ def test_ingest_sitemap_initializes_link_graph(
     )
 
     assert response.status_code == 200
-    mock_build_link_graph.assert_called_once_with(mock_crawl_and_extract.return_value)
-    mock_init_link_graph.assert_called_once_with(mock_build_link_graph.return_value)
-    mock_ingest_article.assert_any_call("https://example.com/a", "Article A")
-    mock_ingest_article.assert_any_call("https://example.com/b", "Article B")
+    data = response.json()
+    assert data["job_id"] == "test-job-uuid-123"
+    assert data["status"] == "queued"
+    assert data["estimated_articles"] == 2

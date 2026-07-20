@@ -1,49 +1,53 @@
 {
   "project": "AutoLinks",
-  "last_updated": "2026-05-15",
+  "last_updated": "2026-07-20",
   "summary": {
-    "total": 19,
-    "completed": 19,
+    "total": 27,
+    "completed": 27,
     "in_progress": 0,
     "planned": 0,
-    "tests_passing": 14,
+    "tests_passing": 19,
     "tests_failing": 0,
-    "tests_missing": 5
+    "tests_missing": 0
   },
   "features": [
     {
       "id": "F001",
       "name": "NER Entity Extraction",
-      "description": "Extract named entities from draft text using GLiNER API",
+      "description": "Extract named entities from draft text using GLiNER",
       "status": "completed",
       "priority": "high",
       "module": "backend/core/extract.py",
-      "design_doc": "docs/design.MD",
+      "design_doc": "docs/design.md",
       "tests": {
         "status": "completed",
-        "files": ["backend/tests/test_core/test_extract.py"],
-        "notes": "Tests cover Pioneer payload normalization plus entity post-processing for short-token filtering and initialism deduplication."
+        "files": [
+          "backend/tests/test_core/test_extract.py"
+        ],
+        "notes": "Tests cover entity payload normalization plus entity post-processing for short-token filtering and initialism deduplication."
       },
       "subtasks": [],
-      "notes": "Entity output is post-processed before vector search to remove noisy short tokens and abbreviation duplicates such as WBW versus Wait But Why.",
+      "notes": "v1: used Pioneer.ai API (now defunct). v2: migrating to self-hosted GLiNER on HF Space (see F020).",
       "added": "2026-04-30",
       "completed": "2026-05-02"
     },
     {
       "id": "F002",
       "name": "Sentence Embedding Generation",
-      "description": "Generate embeddings using all-MiniLM-L6-v2 local model",
+      "description": "Generate embeddings using all-MiniLM-L6-v2",
       "status": "completed",
       "priority": "high",
       "module": "backend/core/embed.py",
-      "design_doc": "docs/design.MD",
+      "design_doc": "docs/design.md",
       "tests": {
         "status": "completed",
-        "files": ["backend/tests/test_core/test_embed.py"],
+        "files": [
+          "backend/tests/test_core/test_embed.py"
+        ],
         "notes": "Tests for embed_text and batch embedding"
       },
       "subtasks": [],
-      "notes": "",
+      "notes": "v1: local SentenceTransformer on Render. v2: migrating to self-hosted MiniLM on HF Space (see F020). Local model kept as dev fallback when MODELS_SPACE_URL is unset.",
       "added": "2026-04-30",
       "completed": "2026-04-30"
     },
@@ -54,10 +58,12 @@
       "status": "completed",
       "priority": "high",
       "module": "backend/core/search.py",
-      "design_doc": "docs/design.MD",
+      "design_doc": "docs/design.md",
       "tests": {
         "status": "completed",
-        "files": ["backend/tests/test_core/test_qdrant.py"],
+        "files": [
+          "backend/tests/test_core/test_qdrant.py"
+        ],
         "notes": "Tests cover local and hosted client creation plus normalized search result mapping"
       },
       "subtasks": [],
@@ -72,14 +78,16 @@
       "status": "completed",
       "priority": "high",
       "module": "backend/core/rerank.py",
-      "design_doc": "docs/design.MD",
+      "design_doc": "docs/design.md",
       "tests": {
         "status": "completed",
-        "files": ["backend/tests/test_core/test_rerank.py"],
+        "files": [
+          "backend/tests/test_core/test_rerank.py"
+        ],
         "notes": "Tests cover equity_need, final_score, URL-level candidate collapse, exclusion of already-selected URLs, and final score ordering."
       },
       "subtasks": [],
-      "notes": "Reranking now collapses duplicate chunk hits down to one best candidate per URL before scoring, which prevents a single article from occupying multiple slots during recommendation generation.",
+      "notes": "Reranking collapses duplicate chunk hits down to one best candidate per URL before scoring, which prevents a single article from occupying multiple slots during recommendation generation.",
       "added": "2026-04-30",
       "completed": "2026-04-30"
     },
@@ -90,7 +98,7 @@
       "status": "completed",
       "priority": "high",
       "module": "backend/core/ingest.py",
-      "design_doc": "docs/design.MD",
+      "design_doc": "docs/design.md",
       "tests": {
         "status": "completed",
         "files": [
@@ -100,7 +108,7 @@
         "notes": "Tests cover internal link extraction, inbound link graph construction, and sitemap ingest graph initialization."
       },
       "subtasks": [],
-      "notes": "Sitemap ingestion now reuses crawled HTML to extract outbound internal links and initialize real inbound link counts for equity-aware reranking.",
+      "notes": "v1: synchronous single-request ingest \u2014 times out on Render free tier for 150+ article sitemaps. v2: converting to async job queue via Redis + Celery (see F021, F022, F023).",
       "added": "2026-04-30",
       "completed": "2026-05-02"
     },
@@ -111,14 +119,16 @@
       "status": "completed",
       "priority": "high",
       "module": "backend/api/v1/routes.py",
-      "design_doc": "docs/design.MD",
+      "design_doc": "docs/design.md",
       "tests": {
         "status": "completed",
-        "files": ["backend/tests/test_api/test_routes.py"],
+        "files": [
+          "backend/tests/test_api/test_routes.py"
+        ],
         "notes": "Integration tests with mocked core modules cover min_similarity forwarding, widened retrieval depth, and URL-diverse recommendations across multiple entities."
       },
       "subtasks": [],
-      "notes": "Recommend requests now query a wider candidate pool, rerank at the URL level, and avoid repeating the same destination URL within a single response unless new URLs are exhausted.",
+      "notes": "Recommend requests query a wider candidate pool, rerank at the URL level, and avoid repeating the same destination URL within a single response unless new URLs are exhausted.",
       "added": "2026-04-30",
       "completed": "2026-05-02"
     },
@@ -129,10 +139,12 @@
       "status": "completed",
       "priority": "medium",
       "module": "backend/api/v1/routes.py",
-      "design_doc": "docs/design.MD",
+      "design_doc": "docs/design.md",
       "tests": {
         "status": "completed",
-        "files": ["backend/tests/test_api/test_routes.py"],
+        "files": [
+          "backend/tests/test_api/test_routes.py"
+        ],
         "notes": "Basic validation tests"
       },
       "subtasks": [],
@@ -147,10 +159,12 @@
       "status": "completed",
       "priority": "medium",
       "module": "backend/api/v1/routes.py",
-      "design_doc": "docs/design.MD",
+      "design_doc": "docs/design.md",
       "tests": {
         "status": "completed",
-        "files": ["backend/tests/test_api/test_routes.py"],
+        "files": [
+          "backend/tests/test_api/test_routes.py"
+        ],
         "notes": "Tests for health endpoint"
       },
       "subtasks": [],
@@ -161,18 +175,18 @@
     {
       "id": "F009",
       "name": "Configuration Management",
-      "description": "Centralized config using Pydantic BaseSettings",
+      "description": "Centralized config using Pydantic BaseSettings with .env loading",
       "status": "completed",
       "priority": "high",
       "module": "backend/utils/config.py",
-      "design_doc": "docs/design.MD",
+      "design_doc": "docs/design.md",
       "tests": {
         "status": "missing",
         "files": [],
         "notes": "Tests for config defaults and env var loading"
       },
       "subtasks": [],
-      "notes": "",
+      "notes": "v2: adding MODELS_SPACE_URL, REDIS_URL, REDIS_SSL. Removing deprecated PIONEER_API_KEY and GLINER_URL.",
       "added": "2026-04-30",
       "completed": "2026-04-30"
     },
@@ -183,7 +197,7 @@
       "status": "completed",
       "priority": "high",
       "module": "backend/utils/logger.py",
-      "design_doc": "docs/design.MD",
+      "design_doc": "docs/design.md",
       "tests": {
         "status": "missing",
         "files": [],
@@ -201,7 +215,7 @@
       "status": "completed",
       "priority": "medium",
       "module": "docs/api.md",
-      "design_doc": "docs/design.MD",
+      "design_doc": "docs/design.md",
       "tests": {
         "status": "missing",
         "files": [],
@@ -215,7 +229,7 @@
     {
       "id": "F012",
       "name": "Distributed Systems Performance (Latency) Evaluation",
-      "description": "Measure total round-trip time from Vercel request to JSON response across 50 sequential calls. Target: under 3 seconds. Instrumentation logs each pipeline segment (GLiNER, embedding, Qdrant, reranking) independently to identify bottlenecks.",
+      "description": "Measure total round-trip time from Vercel request to JSON response across 50 sequential calls. Target: under 3 seconds.",
       "status": "completed",
       "priority": "high",
       "module": "backend/eval/eval_latency.py",
@@ -233,25 +247,27 @@
     {
       "id": "F013",
       "name": "Link Equity Distribution (Graph Health) Evaluation",
-      "description": "Measure how intelligently the system distributes link equity across the site compared to pure similarity baseline. Run 50 drafts through baseline (α=1.0) and equity-aware (α=0.7) configs. Compute orphan reduction rate and Gini coefficient - equity-aware should achieve lower Gini and higher orphan reduction while maintaining >90% semantic accuracy.",
+      "description": "Measure how intelligently the system distributes link equity across the site compared to pure similarity baseline.",
       "status": "completed",
       "priority": "high",
       "module": "backend/eval/eval_equity.py",
       "design_doc": "docs/design.md",
       "tests": {
         "status": "completed",
-        "files": ["backend/tests/test_eval/test_eval_equity.py"],
-        "notes": "Tests cover projected full-graph Gini calculation plus orphan rescue measurement against the original inbound-link graph."
+        "files": [
+          "backend/tests/test_eval/test_eval_equity.py"
+        ],
+        "notes": "Tests cover projected full-graph Gini calculation plus orphan rescue measurement."
       },
       "subtasks": [],
-      "notes": "Eval 4 now fetches the server's active link graph, lowers min_similarity during evaluation to expose a wider rerank candidate pool, and computes distribution metrics on the projected full graph after simulated recommendations.",
+      "notes": "Eval 4 - fetches the server's active link graph, lowers min_similarity during evaluation to expose a wider rerank candidate pool, and computes distribution metrics on the projected full graph.",
       "added": "2026-05-02",
       "completed": "2026-05-04"
     },
     {
       "id": "F014",
       "name": "Frontend Landing and Navigation Shell",
-      "description": "Add a branded landing page plus in-app navigation between home, workspace, and FAQ views.",
+      "description": "Branded landing page plus in-app navigation between home, workspace, and FAQ views.",
       "status": "completed",
       "priority": "high",
       "module": "frontend/src/App.jsx",
@@ -262,14 +278,14 @@
         "notes": "UI flow covered by manual verification via production build; no component-level automated navigation tests yet."
       },
       "subtasks": [],
-      "notes": "Header tabs and the avatar dropdown now navigate to the landing page, analyzer workspace, FAQ glossary, and backend API docs. Homepage CTAs also share a common base style so primary and secondary actions render with consistent sizing.",
+      "notes": "Header tabs and the avatar dropdown navigate to the landing page, analyzer workspace, FAQ glossary, and backend API docs.",
       "added": "2026-05-02",
       "completed": "2026-05-02"
     },
     {
       "id": "F015",
       "name": "Frontend FAQ Glossary",
-      "description": "Provide a dedicated FAQ page that explains core internal-linking and semantic-search terms used throughout the product.",
+      "description": "Dedicated FAQ page explaining core internal-linking and semantic-search terms.",
       "status": "completed",
       "priority": "medium",
       "module": "frontend/src/components/FaqPage.jsx",
@@ -280,7 +296,7 @@
         "notes": "Content-oriented UI with no dedicated automated rendering tests yet."
       },
       "subtasks": [],
-      "notes": "The glossary includes terms such as embeddings, orphan pages, link equity, GLiNER, Qdrant, and DRY_RUN.",
+      "notes": "Module file deleted in recent commits (FAQ feature removed). Entry kept for historical tracking.",
       "added": "2026-05-02",
       "completed": "2026-05-02"
     },
@@ -294,67 +310,268 @@
       "design_doc": "docs/frontend-design.md",
       "tests": {
         "status": "completed",
-        "files": ["frontend/src/utils/editor_highlight.test.js"],
-        "notes": "Automated tests cover stable highlight markup generation and safe phrase-key encoding used by the scroll linking behavior."
+        "files": [
+          "frontend/src/utils/editor_highlight.test.js"
+        ],
+        "notes": "Automated tests cover stable highlight markup generation and safe phrase-key encoding."
       },
       "subtasks": [],
-      "notes": "Highlight rendering now uses encoded phrase keys so the workspace can reliably locate matching marks before smooth-scrolling them into view.",
+      "notes": "Highlight rendering uses encoded phrase keys so the workspace can reliably locate matching marks before smooth-scrolling them into view.",
       "added": "2026-05-02",
       "completed": "2026-05-02"
     },
     {
       "id": "F017",
       "name": "Link Graph Inspection Endpoint",
-      "description": "Expose the active inbound-link graph so evaluation and debugging tools can inspect the server's current equity state.",
+      "description": "Expose the active inbound-link graph for evaluation and debugging tools.",
       "status": "completed",
       "priority": "medium",
       "module": "backend/api/v1/routes.py",
       "design_doc": "docs/design.md",
       "tests": {
         "status": "completed",
-        "files": ["backend/tests/test_api/test_routes.py"],
+        "files": [
+          "backend/tests/test_api/test_routes.py"
+        ],
         "notes": "Async route test verifies the endpoint returns the current rerank link graph and URL count."
       },
       "subtasks": [],
-      "notes": "GET /api/v1/link-graph returns the in-memory inbound-link counts used by the reranker, which keeps the equity eval aligned with the API process instead of a disconnected local module import.",
+      "notes": "GET /api/v1/link-graph returns the in-memory inbound-link counts used by the reranker.",
       "added": "2026-05-04",
       "completed": "2026-05-04"
     },
     {
       "id": "F018",
       "name": "AI Precision (LLM-as-a-Judge) Evaluation",
-      "description": "Use Groq as an LLM judge to score whether each recommendation is semantically accurate and highly helpful, with separate reporting for ambiguity tripwire cases.",
+      "description": "Use Groq as an LLM judge to score whether each recommendation is semantically accurate.",
       "status": "completed",
       "priority": "high",
       "module": "backend/eval/eval_precision.py",
       "design_doc": "docs/design.md",
       "tests": {
         "status": "completed",
-        "files": ["backend/tests/test_eval/test_eval_precision.py"],
+        "files": [
+          "backend/tests/test_eval/test_eval_precision.py"
+        ],
         "notes": "Tests cover Groq structured-output format selection, richer judge prompt construction, and SDK-based verdict parsing."
       },
       "subtasks": [],
-      "notes": "Eval 2 now uses the official Groq Python SDK, falls back to JSON object mode for unsupported models, and enriches judgment with cached target-page excerpts plus source focus context.",
+      "notes": "Eval 2 - uses the official Groq Python SDK, falls back to JSON object mode for unsupported models, and enriches judgment with cached target-page excerpts.",
       "added": "2026-05-15",
       "completed": "2026-05-15"
     },
     {
       "id": "F019",
       "name": "Frontend Sitemap Management Page",
-      "description": "Add a dedicated frontend view that shows whether sitemap-backed URLs are currently loaded and lets the user submit a new sitemap XML crawl directly from the UI.",
+      "description": "Frontend view showing whether sitemap-backed URLs are loaded and letting users submit new sitemap crawls.",
       "status": "completed",
       "priority": "high",
       "module": "frontend/src/components/SitemapPage.jsx",
       "design_doc": "docs/frontend-design.md",
       "tests": {
         "status": "completed",
-        "files": ["frontend/src/services/api.test.js"],
-        "notes": "Service-level tests cover env-driven API URL construction, sitemap status mapping from the link-graph endpoint, and direct sitemap ingest request payloads."
+        "files": [
+          "frontend/src/services/api.test.js"
+        ],
+        "notes": "Service-level tests cover env-driven API URL construction and sitemap status/ingest payloads."
       },
       "subtasks": [],
-      "notes": "The page infers active sitemap status from the current indexed link graph, offers a direct XML URL submission flow to POST /api/v1/ingest/sitemap, and now reads the backend API base URL from the repo-root .env via Vite so local or hosted backend targets can be swapped without source edits.",
+      "notes": "The page infers active sitemap status from the current indexed link graph and offers direct XML URL submission to POST /api/v1/ingest/sitemap.",
       "added": "2026-05-15",
       "completed": "2026-05-15"
+    },
+    {
+      "id": "F020",
+      "name": "HF Space Model Serving",
+      "description": "Self-host GLiNER and MiniLM inference on a combined HuggingFace Space (eros483/autolinks-models) with FastAPI endpoints POST /extract, POST /embed, and GET /health.",
+      "status": "completed",
+      "priority": "high",
+      "module": "hf-space:eros483/autolinks-models",
+      "design_doc": "docs/v2.md",
+      "tests": {
+        "status": "completed",
+        "files": [],
+        "notes": "Test Space endpoints return correct entity and embedding shapes. Test health endpoint reports both models loaded."
+      },
+      "subtasks": [
+        "Create Space Dockerfile with fastapi, uvicorn, sentence-transformers, gliner",
+        "Implement POST /extract endpoint wrapping fastino/gliner2-base-v1",
+        "Implement POST /embed endpoint wrapping all-MiniLM-L6-v2",
+        "Implement GET /health endpoint with model load status",
+        "Set HF_HOME=/data/hf_cache for persistent model caching",
+        "Deploy via hf spaces create + hf upload"
+      ],
+      "notes": "Single Space serves both models. cpu-basic free tier (16GB RAM) is ample. Models loaded at startup to avoid cold-start penalty on first request. Benefits: frees ~150MB RAM from Render web and worker services.",
+      "added": "2026-07-20",
+      "completed": "2026-07-20"
+    },
+    {
+      "id": "F021",
+      "name": "Async Ingestion Job Queue",
+      "description": "Convert synchronous sitemap ingestion to async job queue using Redis (Upstash) as broker and Celery as task runner. API immediately returns job_id; worker processes crawl in background.",
+      "status": "completed",
+      "priority": "high",
+      "module": "backend/core/jobs.py, backend/core/celery_app.py",
+      "design_doc": "docs/v2.md",
+      "tests": {
+        "status": "completed",
+        "files": [],
+        "notes": "Test job creation, status tracking, progress reporting, and completion. Mock Redis for unit tests."
+      },
+      "subtasks": [
+        "Add redis and celery dependencies to pyproject.toml",
+        "Create Celery app instance with Redis broker/backend configuration",
+        "Create JobManager class (generate job_id, track status/progress, store results in Redis)",
+        "Create Celery task wrapping crawl_and_extract -> build_link_graph -> ingest_article flow",
+        "Add GET /ingest/status/{job_id} and GET /ingest/result/{job_id} endpoints",
+        "Refactor POST /ingest/sitemap to enqueue job instead of running synchronously",
+        "Add Upstash REDIS_URL and REDIS_SSL config vars"
+      ],
+      "notes": "Fixes Render free-tier timeout for 150+ article sitemap ingests. Job lifecycle: queued -> processing -> done/failed. Celery concurrency=8 gives parallel article processing.",
+      "added": "2026-07-20",
+      "completed": "2026-07-20"
+    },
+    {
+      "id": "F022",
+      "name": "Dead Letter Queue",
+      "description": "Store permanently failed ingestion jobs (after max retries) in a Redis-backed DLQ. Expose retry endpoint for manual reprocessing.",
+      "status": "completed",
+      "priority": "medium",
+      "module": "backend/core/dlq.py",
+      "design_doc": "docs/v2.md",
+      "tests": {
+        "status": "completed",
+        "files": [],
+        "notes": "Test DLQ push on task failure, pop for retry, max retry exhaustion, and manual reprocessing endpoint."
+      },
+      "subtasks": [
+        "Create DeadLetterQueue class using Redis list dlq:ingest",
+        "Store failed job metadata: job_id, task_name, args, error, timestamp, retry_count",
+        "Configure Celery task with max_retries=3 and on_failure callback to push to DLQ",
+        "Add POST /ingest/retry-dead endpoint to pop and re-enqueue failed jobs"
+      ],
+      "notes": "Failed jobs accumulate in DLQ for inspection. Manual trigger via API retries them. Prevents silent data loss during sitemap crawls.",
+      "added": "2026-07-20",
+      "completed": "2026-07-20"
+    },
+    {
+      "id": "F023",
+      "name": "Celery Worker Deployment",
+      "description": "Deploy a dedicated Celery background worker on Render (separate from web service) to process ingestion jobs without HTTP request timeout constraints.",
+      "status": "completed",
+      "priority": "high",
+      "module": "backend/worker.py, backend/worker.Dockerfile",
+      "design_doc": "docs/v2.md",
+      "tests": {
+        "status": "completed",
+        "files": [],
+        "notes": "Integration test: worker picks up queued job, processes articles, reports completion."
+      },
+      "subtasks": [
+        "Create worker.Dockerfile with celery worker CMD (concurrency=8)",
+        "Create Render Background Worker service pointing to worker.Dockerfile",
+        "Configure worker environment variables (MODELS_SPACE_URL, REDIS_URL, QDRANT_*, HF_API_KEY)",
+        "Set up Upstash Redis connection with TLS support",
+        "Optional: Flower dashboard for queue monitoring"
+      ],
+      "notes": "Worker is a separate Render free-tier service. No web port needed \u2014 Render supports Background Worker type. Concurrency=8 possible because models are offloaded to HF Space (worker RAM ~80MB).",
+      "added": "2026-07-20",
+      "completed": "2026-07-20"
+    },
+    {
+      "id": "F024",
+      "name": "GitHub Actions CI",
+      "description": "Automated CI pipeline on push/PR to main: backend tests (pytest + black), frontend tests (vitest + eslint).",
+      "status": "completed",
+      "priority": "high",
+      "module": ".github/workflows/ci.yml",
+      "design_doc": "docs/v2.md",
+      "tests": {
+        "status": "completed",
+        "files": [],
+        "notes": "CI workflow self-validates by running: the CI pipeline is the test."
+      },
+      "subtasks": [
+        "Create .github/workflows/ci.yml with backend and frontend jobs",
+        "Backend: setup-uv, uv sync, uv run pytest --cov, uv run black --check",
+        "Frontend: setup-node, npm ci, npm run lint, npm run test"
+      ],
+      "notes": "Runs on every push and PR to main. Uses official uv and node setup actions. Coverage report in CI output.",
+      "added": "2026-07-20",
+      "completed": "2026-07-20"
+    },
+    {
+      "id": "F025",
+      "name": "GitHub Actions Keepalive CD",
+      "description": "Scheduled cron job (every 10 min) pinging Render backend API, HF Models Space, and Qdrant Cloud to prevent free-tier sleep.",
+      "status": "completed",
+      "priority": "medium",
+      "module": ".github/workflows/keepalive.yml",
+      "design_doc": "docs/v2.md",
+      "tests": {
+        "status": "completed",
+        "files": [],
+        "notes": "Manually verified via workflow dispatch and curl exit codes."
+      },
+      "subtasks": [
+        "Create .github/workflows/keepalive.yml with schedule trigger",
+        "Ping Render: curl https://autolinks-api.onrender.com/api/v1/health",
+        "Ping HF Space: curl https://eros483-autolinks-models.hf.space/health",
+        "Ping Qdrant: curl https://<qdrant-host>:6333"
+      ],
+      "notes": "Free-tier services sleep after ~15 min of inactivity. Keepalive prevents cold-start penalty on real requests. Uses GitHub Actions free tier (unlimited minutes for public repos).",
+      "added": "2026-07-20",
+      "completed": "2026-07-20"
+    },
+    {
+      "id": "F026",
+      "name": "Dockerfile uv Migration",
+      "description": "Replace pip-based Dockerfile with uv-based multi-stage build. Remove requirements.txt. Use uv.lock as single source of truth.",
+      "status": "completed",
+      "priority": "medium",
+      "module": "backend/Dockerfile, backend/worker.Dockerfile",
+      "design_doc": "docs/v2.md",
+      "tests": {
+        "status": "completed",
+        "files": [],
+        "notes": "Verify Docker image builds and FastAPI starts correctly."
+      },
+      "subtasks": [
+        "Delete backend/requirements.txt",
+        "Rewrite Dockerfile: copy uv binary, copy pyproject.toml + uv.lock, uv sync --frozen --no-dev",
+        "Bump base image from python:3.11-slim to python:3.13-slim",
+        "Verify PYTHONPATH and module imports work in container",
+        "Create worker.Dockerfile with same base but Celery worker CMD"
+      ],
+      "notes": "Removes pip dependency from Docker build. Smaller image since --no-dev skips sentence-transformers (now dev-only). Must match Python version in Dockerfile to pyproject.toml (3.13).",
+      "added": "2026-07-20",
+      "completed": "2026-07-20"
+    },
+    {
+      "id": "F027",
+      "name": "Pioneer API Removal",
+      "description": "Remove deprecated Pioneer.ai API integration from extract.py and config.py. Replace with HF Space call.",
+      "status": "completed",
+      "priority": "high",
+      "module": "backend/core/extract.py, backend/utils/config.py",
+      "design_doc": "docs/v2.md",
+      "tests": {
+        "status": "completed",
+        "files": [
+          "backend/tests/test_core/test_extract.py"
+        ],
+        "notes": "Update test mocks from Pioneer API responses to HF Space responses. Verify entity extraction still works end-to-end."
+      },
+      "subtasks": [
+        "Replace Pioneer httpx.post call with HF Space POST /extract call",
+        "Simplify entity response parsing (HF Space returns flat list, no nested choices[0].message.content)",
+        "Remove pioneer_api_key and gliner_url from config.py",
+        "Add models_space_url to config.py",
+        "Update DRY_RUN fixture entities to match new code path"
+      ],
+      "notes": "Pioneer.ai stopped offering free API keys. This is the direct trigger for the v2 migration. HF Space format is simpler than Pioneer's OpenAI-chat wrapper, reducing code complexity.",
+      "added": "2026-07-20",
+      "completed": "2026-07-20"
     }
   ]
 }

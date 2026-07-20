@@ -1,0 +1,19 @@
+name: Keepalive
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render backend
+        run: curl -sf -m 30 https://autolinks-api.onrender.com/api/v1/health
+
+      - name: Ping HF Models Space
+        run: curl -sf -m 30 https://eros483-autolinks-models.hf.space/gradio_api/call/health -X POST -H "Content-Type: application/json" -d '{"data": []}'
+
+      - name: Ping Qdrant Cloud
+        run: curl -sf -m 30 https://e394ef50-f3fb-483d-b261-87c2d0e81166.us-west-1-0.aws.cloud.qdrant.io:6333

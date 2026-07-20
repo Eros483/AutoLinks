@@ -8,7 +8,9 @@ This guide covers the complete deployment process for AutoLinks, covering infras
 
 - GitHub repository with the AutoLinks codebase
 - [pioneer.ai](https://pioneer.ai) account for GLiNER API (~$75 credit)
+- [Hugging Face](https://huggingface.co) account (free) for GLiNER2 + MiniLM inference Space
 - [Qdrant Cloud](https://qdrant.tech) account (free tier)
+- [Upstash](https://upstash.com) account (free tier) for Redis job queue
 - [Render](https://render.com) account for backend hosting (free tier)
 - [Vercel](https://vercel.com) account for frontend hosting (free tier)
 
@@ -155,10 +157,13 @@ In the Render dashboard, add the following environment variables under **Environ
 
 | Variable | Value |
 |----------|-------|
-| `PIONEER_API_KEY` | Your pioneer.ai API key |
-| `QDRANT_URL` | Your Qdrant cloud endpoint (e.g., `https://xxxx.us-east-1-1.qdrant.tech`) |
+| `MODELS_SPACE_URL` | `https://eros483-autolinks-models.hf.space` |
+| `HF_TOKEN` | Your Hugging Face access token |
+| `QDRANT_URL` | Your Qdrant cloud endpoint (e.g., `https://xxxx.us-west-1-0.aws.cloud.qdrant.io`) |
 | `QDRANT_API_KEY` | Your Qdrant API key |
-| `DRY_RUN` | `false` (set to `true` to test without spending credits) |
+| `REDIS_URL` | Upstash Redis connection string (`rediss://default:<token>@<host>:6379`) |
+| `GROQ_API_KEY` | Your Groq API key (for evaluation) |
+| `DRY_RUN` | `false` (set to `true` to test without external API calls) |
 | `DEBUG` | `false` |
 | `RERANK_ALPHA` | `0.7` |
 
@@ -309,10 +314,13 @@ After deployment, update `README.md` to reflect production URLs:
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `PIONEER_API_KEY` | GLiNER API key from pioneer.ai | `pk-xxxx...` |
-| `QDRANT_URL` | Qdrant Cloud endpoint | `https://xxxx.us-east-1-1.qdrant.tech` |
+| `MODELS_SPACE_URL` | HF Space for GLiNER2 + MiniLM | `https://eros483-autolinks-models.hf.space` |
+| `HF_TOKEN` | Hugging Face access token | `hf_xxxx...` |
+| `QDRANT_URL` | Qdrant Cloud endpoint | `https://xxxx.us-west-1-0.aws.cloud.qdrant.io` |
 | `QDRANT_API_KEY` | Qdrant API key | `xxxxx...` |
-| `DRY_RUN` | Skip GLiNER (for testing) | `false` |
+| `REDIS_URL` | Upstash Redis for Celery | `rediss://default:xxx@host:6379` |
+| `GROQ_API_KEY` | Groq LLM judge API key | `gsk_xxxx...` |
+| `DRY_RUN` | Skip external API calls (for testing) | `false` |
 | `DEBUG` | Enable debug logging | `false` |
 | `RERANK_ALPHA` | Equity-aware ranking weight | `0.7` |
 
@@ -324,6 +332,32 @@ After deployment, update `README.md` to reflect production URLs:
 
 ---
 
+## Step 8: Deploy Celery Worker to Render
+
+The Celery worker handles async sitemap ingestion tasks. It's a separate Render Background Worker service.
+
+### 8.1 Create Background Worker on Render
+
+1. Go to [Render Dashboard](https://dashboard.render.com)
+2. Click **New** and select **Background Worker**
+3. Connect your GitHub repository
+4. Configure:
+   - **Name**: `autolinks-worker`
+   - **Region**: Same as web service (e.g., Oregon)
+   - **Branch**: `main`
+   - **Root Directory**: `backend`
+   - **Dockerfile Path**: `backend/worker.Dockerfile`
+
+### 8.2 Set Environment Variables
+
+Use the same environment variables as the web service (`MODELS_SPACE_URL`, `HF_TOKEN`, `QDRANT_URL`, `QDRANT_API_KEY`, `REDIS_URL`).
+
+### 8.3 Deploy
+
+Click **Create Background Worker**. The worker starts and connects to Upstash Redis, processing ingestion jobs as they are enqueued.
+
+---
+
 ## Troubleshooting
 
 ### Backend
@@ -331,6 +365,8 @@ After deployment, update `README.md` to reflect production URLs:
 - **500 errors**: Check Render logs in the dashboard
 - **Qdrant connection errors**: Verify `QDRANT_URL` and `QDRANT_API_KEY` are correct
 - **Cold start delays**: Use cron-job.org to ping every 10 minutes
+- **Celery worker not picking up jobs**: Verify `REDIS_URL` is set and Upstash Redis is running
+- **HF Space errors**: Verify `HF_TOKEN` is valid and `MODELS_SPACE_URL` is correct
 
 ### Frontend
 
@@ -339,5 +375,5 @@ After deployment, update `README.md` to reflect production URLs:
 
 ### General
 
-- **DRY_RUN**: Set `DRY_RUN=true` to test without spending GLiNER credits
+- **DRY_RUN**: Set `DRY_RUN=true` to test without calling HF Space
 - **Index empty**: Run the sitemap ingestion endpoint to populate the vector database

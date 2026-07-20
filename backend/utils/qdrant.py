@@ -14,12 +14,15 @@ _client = None
 
 
 def _normalize_qdrant_url(raw_url: str) -> str:
-    """Ensure hosted Qdrant URLs include the expected REST API port."""
+    """Ensure self-hosted Qdrant URLs include port 6333. Cloud URLs pass through unchanged."""
     parsed_url = urlparse(raw_url)
     if not parsed_url.scheme or not parsed_url.netloc:
         return raw_url
 
     if parsed_url.port or parsed_url.hostname in {"localhost", "127.0.0.1"}:
+        return raw_url
+
+    if parsed_url.scheme == "https" or ".cloud.qdrant.io" in parsed_url.hostname:
         return raw_url
 
     return urlunparse(
