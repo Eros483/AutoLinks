@@ -15,8 +15,8 @@ def _get_redis() -> redis.Redis:
     redis_url = config.redis_url
     kwargs = {}
     if redis_url.startswith("rediss://"):
-        redis_url += "?ssl_cert_reqs=CERT_NONE"
-    return redis.Redis.from_url(redis_url)
+        kwargs["ssl_cert_reqs"] = None
+    return redis.Redis.from_url(redis_url, **kwargs)
 
 
 def push_to_dlq(

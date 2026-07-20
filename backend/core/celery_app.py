@@ -14,15 +14,16 @@ def get_celery():
     if not broker_url:
         broker_url = "redis://localhost:6379/0"
 
+    transport_opts = {"visibility_timeout": 3600}
     if broker_url.startswith("rediss://"):
-        broker_url += "?ssl_cert_reqs=CERT_NONE"
+        transport_opts["ssl_cert_reqs"] = None
 
     _celery_app = Celery(
         "autolinks",
         broker=broker_url,
         backend=broker_url,
         broker_connection_retry_on_startup=True,
-        broker_transport_options={"visibility_timeout": 3600},
+        broker_transport_options=transport_opts,
     )
 
     _celery_app.conf.update(

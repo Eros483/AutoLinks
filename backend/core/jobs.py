@@ -21,8 +21,8 @@ def _get_redis() -> redis.Redis:
         redis_url = config.redis_url
         kwargs = {}
         if redis_url.startswith("rediss://"):
-            redis_url += "?ssl_cert_reqs=CERT_NONE"
-        _rclient = redis.Redis.from_url(redis_url)
+            kwargs["ssl_cert_reqs"] = None
+        _rclient = redis.Redis.from_url(redis_url, **kwargs)
     return _rclient
 
 
