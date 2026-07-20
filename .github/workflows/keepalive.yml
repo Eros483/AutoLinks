@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping Render backend
-        run: curl -sf -m 30 https://autolinks-api.onrender.com/api/v1/health
+        run: curl -sf -m 30 https://autolinks.onrender.com/api/v1/health
 
       - name: Warm GLiNER model
         run: |
