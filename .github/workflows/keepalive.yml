@@ -10,25 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping Render backend
-        run: curl -sf -m 30 https://autolinks.onrender.com/api/v1/health
-
-      - name: Warm GLiNER model
-        run: |
-          curl -sf -m 45 https://eros483-autolinks-models.hf.space/gradio_api/call/extract_entities \
-            -X POST \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.HF_TOKEN }}" \
-            -d "{\"data\": [\"warmup\", \"[\\\"topic\\\"]\"]}"
-
-      - name: Warm MiniLM model
-        run: |
-          curl -sf -m 30 https://eros483-autolinks-models.hf.space/gradio_api/call/embed_text \
-            -X POST \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.HF_TOKEN }}" \
-            -d "{\"data\": [\"[\\\"warmup\\\"]\"]}"
+        run: curl -sf -m 120 https://autolinks.onrender.com/api/v1/health
 
       - name: Ping Qdrant Cloud
         run: |
-          curl -sf -m 30 https://e394ef50-f3fb-483d-b261-87c2d0e81166.us-west-1-0.aws.cloud.qdrant.io:6333/collections \
+          curl -sf -m 60 https://e394ef50-f3fb-483d-b261-87c2d0e81166.us-west-1-0.aws.cloud.qdrant.io:6333/collections \
             -H "api-key: ${{ secrets.QDRANT_API_KEY }}"
