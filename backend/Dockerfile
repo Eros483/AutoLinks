@@ -10,7 +10,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 COPY backend/pyproject.toml backend/uv.lock /app/backend/
 
-RUN cd /app/backend && uv sync --frozen --no-dev && .venv/bin/uvicorn --version
+RUN cd /app/backend && uv sync --frozen --no-dev && echo "BUILD_ID=2" && ls -la .venv/bin/uvicorn
 
 COPY backend/ /app/backend/
 
@@ -19,6 +19,7 @@ ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8000
 
-CMD cd /app/backend && \
+CMD ls -la /app/backend/.venv/bin/uvicorn && \
+    cd /app/backend && \
     .venv/bin/celery -A backend.core.tasks worker --concurrency=4 --loglevel=info & \
     .venv/bin/uvicorn backend.main:app --host 0.0.0.0 --port 8000
