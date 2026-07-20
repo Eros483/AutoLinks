@@ -107,6 +107,32 @@ async def crawl_and_extract(
     return {url: page_data for url, page_data in results if page_data}
 
 
+async def stream_fetch_embed_upsert(url: str) -> Optional[List[str]]:
+    """
+    Fetch a single page, embed it, and upsert to Qdrant.
+
+    Returns the page's outbound internal links (for link graph building),
+    or None if the page could not be processed.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            normalized_url = normalize_url(url)
+            text = trafilatura.extract(response.text)
+            if not text:
+                logger.warning("No text extracted from %s", normalized_url)
+                return []
+
+            outbound_links = extract_internal_links(response.text, normalized_url)
+            ingest_article(normalized_url, text)
+            logger.info("Stream ingested %s", normalized_url)
+            return outbound_links
+    except Exception as e:
+        logger.warning("Failed to stream ingest %s: %s", url, e)
+        return None
+
+
 def parse_sitemap(url: str) -> List[str]:
     """Parse sitemap and extract all article URLs."""
     try:

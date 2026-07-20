@@ -1,16 +1,57 @@
 # ----- equity-aware re-ranking @ backend/core/rerank.py -----
+import json
+import redis
 from typing import Any, Dict, List, Optional, Set
 from backend.utils.config import config
 from backend.utils.logger import logger
 
 link_graph: Dict[str, int] = {}
+LINK_GRAPH_KEY = "autolinks:link_graph"
 
 
 def init_link_graph(graph: Dict[str, int]) -> None:
     """Initialize the link graph with pre-computed inbound link counts."""
     global link_graph
     link_graph = graph
-    logger.info(f"Link graph initialized with {len(link_graph)} URLs")
+    _save_link_graph(graph)
+    logger.info("Link graph initialized with %d URLs", len(link_graph))
+
+
+def restore_link_graph() -> Dict[str, int]:
+    """Restore the link graph from Redis on startup."""
+    global link_graph
+    try:
+        if not config.redis_url:
+            return {}
+        rds = _get_redis()
+        raw = rds.get(LINK_GRAPH_KEY)
+        if raw:
+            graph = json.loads(raw)
+            link_graph = graph
+            logger.info("Link graph restored from Redis: %d URLs", len(graph))
+            return graph
+    except Exception as e:
+        logger.warning("Could not restore link graph from Redis: %s", e)
+    return {}
+
+
+def _save_link_graph(graph: Dict[str, int]) -> None:
+    """Persist the link graph to Redis."""
+    try:
+        if not config.redis_url or not graph:
+            return
+        rds = _get_redis()
+        rds.set(LINK_GRAPH_KEY, json.dumps(graph))
+    except Exception as e:
+        logger.warning("Could not save link graph to Redis: %s", e)
+
+
+def _get_redis():
+    redis_url = config.redis_url
+    kwargs = {}
+    if redis_url.startswith("rediss://"):
+        kwargs["ssl_cert_reqs"] = None
+    return redis.Redis.from_url(redis_url, **kwargs)
 
 
 def equity_need(inbound_links: int) -> float:

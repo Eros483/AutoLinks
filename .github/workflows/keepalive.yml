@@ -12,12 +12,21 @@ jobs:
       - name: Ping Render backend
         run: curl -sf -m 30 https://autolinks-api.onrender.com/api/v1/health
 
-      - name: Ping HF Models Space
+      - name: Warm GLiNER model
         run: |
-          curl -sf -m 30 https://eros483-autolinks-models.hf.space/gradio_api/call/health \
+          curl -sf -m 45 https://eros483-autolinks-models.hf.space/gradio_api/call/extract_entities \
             -X POST \
             -H "Content-Type: application/json" \
-            -d "{\"data\": []}"
+            -H "Authorization: Bearer ${{ secrets.HF_TOKEN }}" \
+            -d "{\"data\": [\"warmup\", \"[\\\"topic\\\"]\"]}"
+
+      - name: Warm MiniLM model
+        run: |
+          curl -sf -m 30 https://eros483-autolinks-models.hf.space/gradio_api/call/embed_text \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.HF_TOKEN }}" \
+            -d "{\"data\": [\"[\\\"warmup\\\"]\"]}"
 
       - name: Ping Qdrant Cloud
         run: curl -sf -m 30 https://e394ef50-f3fb-483d-b261-87c2d0e81166.us-west-1-0.aws.cloud.qdrant.io:6333

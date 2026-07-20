@@ -10,18 +10,18 @@ from backend.utils.logger import logger
 @celery_app.task(bind=True, max_retries=3, default_retry_delay=30)
 def crawl_and_ingest_task(self, job_id: str, sitemap_url: str, max_concurrent: int = 5):
     """
-    Celery task: crawl sitemap, extract text, embed, upsert to Qdrant.
+    Celery task: stream crawl sitemap one page at a time.
 
-    Runs synchronously within the worker via asyncio.run.
+    Fetches, embeds, and upserts each page individually to avoid OOM.
+    Builds the link graph after all pages are processed.
     """
     try:
         update_job(job_id, {"status": "processing"})
 
         from backend.core.ingest import (
             parse_sitemap,
-            crawl_and_extract,
+            stream_fetch_embed_upsert,
             build_link_graph,
-            ingest_article,
         )
         from backend.core.rerank import init_link_graph
 
@@ -39,29 +39,29 @@ def crawl_and_ingest_task(self, job_id: str, sitemap_url: str, max_concurrent: i
             },
         )
 
-        crawled_pages = asyncio.run(
-            crawl_and_extract(urls, max_concurrent=max_concurrent)
-        )
-        update_job(job_id, {"articles_done": len(crawled_pages)})
-
-        init_link_graph(build_link_graph(crawled_pages))
-
-        chunks_total = 0
-        for i, (url, page_data) in enumerate(crawled_pages.items()):
-            ingest_article(url, page_data["text"])
-            chunks_total += 1
+        outbound_map = {}
+        done = 0
+        for i, url in enumerate(urls):
+            links = asyncio.run(stream_fetch_embed_upsert(url))
+            if links is not None:
+                done += 1
+                outbound_map[url] = links
             update_job(job_id, {"articles_done": i + 1})
+
+        if outbound_map:
+            graph = build_link_graph(
+                {u: {"outbound_links": lnks} for u, lnks in outbound_map.items()}
+            )
+            init_link_graph(graph)
 
         update_job(
             job_id,
             {
                 "status": "done",
-                "articles_done": len(crawled_pages),
+                "articles_done": done,
             },
         )
-        logger.info(
-            "Job %s completed: %d articles ingested", job_id, len(crawled_pages)
-        )
+        logger.info("Job %s completed: %d articles ingested", job_id, done)
 
     except Exception as exc:
         logger.error(

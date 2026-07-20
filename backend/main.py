@@ -11,10 +11,12 @@ from backend.utils.logger import logger
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    logger.info(f"Starting {config.app_name}")
+    logger.info("Starting %s", config.app_name)
     from backend.utils.qdrant import ensure_collection
+    from backend.core.rerank import restore_link_graph
 
     ensure_collection()
+    restore_link_graph()
 
     if config.debug:
         logger.info("Debug mode enabled")

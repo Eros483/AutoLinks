@@ -17,5 +17,5 @@ ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8000
 
-CMD .venv/bin/celery -A backend.core.tasks worker --concurrency=4 --loglevel=info & \
+CMD .venv/bin/celery -A backend.core.tasks worker --concurrency=1 --loglevel=info & \
     .venv/bin/uvicorn backend.main:app --host 0.0.0.0 --port 8000
