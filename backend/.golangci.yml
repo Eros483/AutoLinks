@@ -1,0 +1,38 @@
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - bodyclose
+    - gosec
+    - revive
+    - misspell
+    - gocritic
+    - gocyclo
+    - prealloc
+    - unconvert
+    - wastedassign
+
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+  revive:
+    rules:
+      - name: exported
+        severity: warning
+        disabled: false
+      - name: blank-imports
+      - name: context-as-argument
+      - name: error-strings
+      - name: error-naming
+      - name: receiver-naming
+      - name: increment-decrement
+      - name: range
+
+issues:
+  exclude-dirs:
+    - vendor
+    - eval

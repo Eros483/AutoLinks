@@ -1,21 +1,13 @@
-# ----- Backend Docker configuration @ backend/Dockerfile -----
-FROM python:3.13-slim
+# ----- multi-stage Go build @ backend/Dockerfile -----
+FROM golang:1.22-alpine AS builder
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /server ./cmd/server
 
-WORKDIR /app/backend
-
-RUN apt-get update && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-
-COPY backend/ /app/backend/
-
-RUN uv sync --frozen --no-dev
-
-ENV PYTHONPATH=/app
-ENV PYTHONUNBUFFERED=1
-
+FROM alpine:3.21
+RUN apk add --no-cache ca-certificates tzdata
+COPY --from=builder /server /server
 EXPOSE 8000
-
-CMD .venv/bin/celery -A backend.core.tasks worker --concurrency=1 --loglevel=info & \
-    .venv/bin/uvicorn backend.main:app --host 0.0.0.0 --port 8000
+CMD ["/server"]

@@ -231,8 +231,8 @@ curl "http://127.0.0.1:8000/api/v1/health"
 
 ## Common Workflow
 
-1. Start Qdrant locally.
-2. Start the FastAPI server.
+1. Start Qdrant.
+2. Start the Go server.
 3. Ingest existing content with `/api/v1/ingest` or `/api/v1/ingest/sitemap`.
 4. Send draft text to `/api/v1/recommend`.
 5. Render the returned recommendations in your frontend or CMS integration.

@@ -293,7 +293,7 @@ After deployment, update `README.md` to reflect production URLs:
 | `HF_TOKEN` | Hugging Face access token | `hf_xxxx...` |
 | `QDRANT_URL` | Qdrant Cloud endpoint | `https://xxxx.us-west-1-0.aws.cloud.qdrant.io` |
 | `QDRANT_API_KEY` | Qdrant API key | `xxxxx...` |
-| `REDIS_URL` | Upstash Redis for Celery | `rediss://default:xxx@host:6379` |
+| `REDIS_URL` | Upstash Redis for job queue | `rediss://default:xxx@host:6379` |
 | `GROQ_API_KEY` | Groq LLM judge API key | `gsk_xxxx...` |
 | `DRY_RUN` | Skip external API calls (for testing) | `false` |
 | `DEBUG` | Enable debug logging | `false` |
@@ -312,7 +312,7 @@ After deployment, update `README.md` to reflect production URLs:
 ### Backend
 
 - **500 errors**: Check Render logs in the dashboard
-- **Qdrant connection errors**: Verify `QDRANT_URL` (ensure gRPC port 6334 is accessible) and `QDRANT_API_KEY` are correct
+- **Qdrant connection errors**: Verify `QDRANT_URL` and `QDRANT_API_KEY` are correct
 - **Cold start delays**: Use cron-job.org to ping every 10 minutes
 - **Ingestion jobs stuck**: Verify `REDIS_URL` is set and Upstash Redis is running; check worker pool logs for failed jobs
 - **HF Space errors**: Verify `HF_TOKEN` is valid and `MODELS_SPACE_URL` is correct
