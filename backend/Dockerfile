@@ -1,25 +1,21 @@
 # ----- Backend Docker configuration @ backend/Dockerfile -----
 FROM python:3.13-slim
 
-WORKDIR /app
+WORKDIR /app/backend
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-COPY backend/pyproject.toml backend/uv.lock /app/backend/
-
-RUN cd /app/backend && uv sync --frozen --no-dev && echo "BUILD_ID=2" && ls -la .venv/bin/uvicorn
-
 COPY backend/ /app/backend/
+
+RUN uv sync --frozen --no-dev
 
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8000
 
-CMD ls -la /app/backend/.venv/bin/uvicorn && \
-    cd /app/backend && \
-    .venv/bin/celery -A backend.core.tasks worker --concurrency=4 --loglevel=info & \
+CMD .venv/bin/celery -A backend.core.tasks worker --concurrency=4 --loglevel=info & \
     .venv/bin/uvicorn backend.main:app --host 0.0.0.0 --port 8000
