@@ -18,7 +18,7 @@ const applyTheme = (theme) => {
   document.documentElement.setAttribute('data-theme', effectiveTheme)
 }
 
-export const useStore = create((set, get) => ({
+export const useStore = create((set) => ({
   draftText: '',
   recommendations: [],
   loading: false,
