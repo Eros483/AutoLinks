@@ -26,17 +26,21 @@ http://127.0.0.1:8000/docs
 
 ## Start The API
 
-From the project root:
+From the backend directory:
 
 ```bash
-uvicorn backend.main:app --reload
+go run ./cmd/server
 ```
 
-If you want to avoid GLiNER credit usage during development:
+Environment variables are loaded from the project root `.env` file.
+
+If you want to avoid external API calls during development:
 
 ```bash
-DRY_RUN=true uvicorn backend.main:app --reload
+DRY_RUN=true go run ./cmd/server
 ```
+
+The server starts an HTTP server on port 8000 and an in-process goroutine worker pool for background sitemap ingestion jobs.
 
 ---
 

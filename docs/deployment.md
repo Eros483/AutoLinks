@@ -6,8 +6,7 @@ This guide covers the complete deployment process for AutoLinks, covering infras
 
 ## Prerequisites
 
-- GitHub repository with the AutoLinks codebase
-- [pioneer.ai](https://pioneer.ai) account for GLiNER API (~$75 credit)
+- [GitHub](https://github.com) account with the AutoLinks repository
 - [Hugging Face](https://huggingface.co) account (free) for GLiNER2 + MiniLM inference Space
 - [Qdrant Cloud](https://qdrant.tech) account (free tier)
 - [Upstash](https://upstash.com) account (free tier) for Redis job queue
@@ -56,78 +55,54 @@ QDRANT_API_KEY=your_qdrant_api_key_here
 
 ---
 
-## Step 2: Create Backend Dockerfile
+## Step 2: Backend Dockerfile (Go Multi-Stage Build)
 
-### 2.1 Create requirements.txt
+The Go backend uses a multi-stage Dockerfile for a minimal production image (~15MB).
 
-First, create the backend dependencies file at `backend/requirements.txt`:
+### 2.1 Project Setup
 
-```text
-fastapi==0.109.2
-uvicorn[standard]==0.27.1
-pydantic==2.6.1
-pydantic-settings==2.1.0
-python-dotenv==1.0.1
-qdrant-client==1.7.4
-sentence-transformers==2.3.1
-httpx==0.26.0
-pytest==8.0.0
-pytest-asyncio==0.23.4
+Ensure the backend directory has a valid `go.mod`:
+
+```bash
+cd backend
+go mod tidy
 ```
 
-### 2.2 Create Dockerfile
+### 2.2 Dockerfile
 
-Create `backend/Dockerfile` in the backend directory:
+Create `backend/Dockerfile`:
 
 ```dockerfile
-# ----- Backend Docker configuration @ backend/Dockerfile -----
-FROM python:3.11-slim
-
+FROM golang:1.23-alpine AS builder
 WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /server ./cmd/server
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY backend/requirements.txt /app/requirements.txt
-
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY backend/ /app/backend/
-
-ENV PYTHONPATH=/app
-ENV PYTHONUNBUFFERED=1
-
+FROM alpine:3.21
+RUN apk add --no-cache ca-certificates tzdata
+COPY --from=builder /server /server
 EXPOSE 8000
-
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/server"]
 ```
 
-### 2.3 Create .dockerignore
+### 2.3 .dockerignore
 
-Create `backend/.dockerignore` to exclude unnecessary files:
+Create `backend/.dockerignore`:
 
 ```
-__pycache__
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.so
-*.egg
-*.egg-info
-dist
-build
-.git
-.gitignore
+*.go~
+*.test
+*.out
 .env
 .env.example
-*.md
-tests/
-.pytest_cache/
-.coverage
-htmlcov/
 logs/
 *.log
+.git
+.gitignore
+*.md
+eval/
 ```
 
 ---
@@ -159,7 +134,7 @@ In the Render dashboard, add the following environment variables under **Environ
 |----------|-------|
 | `MODELS_SPACE_URL` | `https://eros483-autolinks-models.hf.space` |
 | `HF_TOKEN` | Your Hugging Face access token |
-| `QDRANT_URL` | Your Qdrant cloud endpoint (e.g., `https://xxxx.us-west-1-0.aws.cloud.qdrant.io`) |
+| `QDRANT_URL` | Your Qdrant cloud endpoint with gRPC port (e.g., `https://xxxx.us-west-1-0.aws.cloud.qdrant.io:6334`) |
 | `QDRANT_API_KEY` | Your Qdrant API key |
 | `REDIS_URL` | Upstash Redis connection string (`rediss://default:<token>@<host>:6379`) |
 | `GROQ_API_KEY` | Your Groq API key (for evaluation) |
@@ -332,40 +307,14 @@ After deployment, update `README.md` to reflect production URLs:
 
 ---
 
-## Step 8: Deploy Celery Worker to Render
-
-The Celery worker handles async sitemap ingestion tasks. It's a separate Render Background Worker service.
-
-### 8.1 Create Background Worker on Render
-
-1. Go to [Render Dashboard](https://dashboard.render.com)
-2. Click **New** and select **Background Worker**
-3. Connect your GitHub repository
-4. Configure:
-   - **Name**: `autolinks-worker`
-   - **Region**: Same as web service (e.g., Oregon)
-   - **Branch**: `main`
-   - **Root Directory**: `backend`
-   - **Dockerfile Path**: `backend/worker.Dockerfile`
-
-### 8.2 Set Environment Variables
-
-Use the same environment variables as the web service (`MODELS_SPACE_URL`, `HF_TOKEN`, `QDRANT_URL`, `QDRANT_API_KEY`, `REDIS_URL`).
-
-### 8.3 Deploy
-
-Click **Create Background Worker**. The worker starts and connects to Upstash Redis, processing ingestion jobs as they are enqueued.
-
----
-
 ## Troubleshooting
 
 ### Backend
 
 - **500 errors**: Check Render logs in the dashboard
-- **Qdrant connection errors**: Verify `QDRANT_URL` and `QDRANT_API_KEY` are correct
+- **Qdrant connection errors**: Verify `QDRANT_URL` (ensure gRPC port 6334 is accessible) and `QDRANT_API_KEY` are correct
 - **Cold start delays**: Use cron-job.org to ping every 10 minutes
-- **Celery worker not picking up jobs**: Verify `REDIS_URL` is set and Upstash Redis is running
+- **Ingestion jobs stuck**: Verify `REDIS_URL` is set and Upstash Redis is running; check worker pool logs for failed jobs
 - **HF Space errors**: Verify `HF_TOKEN` is valid and `MODELS_SPACE_URL` is correct
 
 ### Frontend

@@ -31,12 +31,13 @@ Instead of an automated bot that forcibly changes a database or scrapes the web,
 ```
 Vercel (Frontend)
       ↓
-FastAPI on Render (Orchestrator)
+Go/chi on Render (Orchestrator)
       ↓                  ↓                  ↓
-GLiNER XL 1B API     Qdrant Cloud      Link Graph Store
-(pioneer.ai)         (Vector DB)       (inbound link counts
-                                        per URL, built from
-                                        sitemap at ingestion)
+HF Space             Qdrant Cloud      Link Graph Store
+(GLiNER2 + MiniLM)   (Vector DB)       (inbound link counts
+(eros483/autolinks)   gRPC port 6334    per URL in Redis,
+                                        built from sitemap
+                                        at ingestion)
 ```
 
 Three services. No GPU infrastructure. No model downloads. Total ongoing infrastructure cost: $0.
@@ -53,33 +54,33 @@ Three services. No GPU infrastructure. No model downloads. Total ongoing infrast
 
 ---
 
-### B. Orchestrator (Python FastAPI on Render)
+### B. Orchestrator (Go/chi on Render)
 
-**Stack:** Python, FastAPI
+**Stack:** Go, chi router
 
 **Role:** The central traffic cop. Receives incoming requests from the frontend, handles authentication and rate limiting, and orchestrates the two downstream API calls.
 
-**Why this works on Render's free tier:** With no ML models loading locally, the service is genuinely lightweight. The only in-process model is `all-MiniLM-L6-v2` for generating embeddings (~200MB RAM), well within Render's 512MB limit. A scheduled ping from cron-job.org hits a `/health` endpoint every 10 minutes to prevent the instance from spinning down, eliminating cold-start latency for the user.
+**Why this works on Render's free tier:** With all model inference offloaded to HuggingFace Space (`eros483/autolinks-models`), the service is genuinely lightweight. No local models are loaded in-process. The Go binary uses ~25MB RAM at runtime, well within Render's 512MB limit.
+
+**Async job processing:** Sitemap ingestion runs on an in-process goroutine worker pool (4 workers). No separate Celery/Render Background Worker service is needed — the goroutine pool starts with the HTTP server. Jobs are tracked in Redis, with retry (3 attempts, exponential backoff 30s→60s→120s) and a dead letter queue for permanently failed jobs. A scheduled ping from cron-job.org hits a `/health` endpoint every 10 minutes to prevent the instance from spinning down.
 
 ---
 
-### C. NER Engine (GLiNER XL 1B via pioneer.ai API)
+### C. NER Engine + Embeddings (HF Space — eros483/autolinks-models)
 
-**Stack:** External API call, no infrastructure
+**Stack:** HuggingFace Space, no local infrastructure
 
-**Role:** Receives the raw draft text and returns named entities with position offsets and confidence scores. GLiNER uses a zero-shot extraction approach, meaning it can identify domain-specific entities ("CUDA optimization", "spatial computing") without task-specific fine-tuning.
+**Role:** A combined Space hosting both GLiNER2 (entity extraction) and all-MiniLM-L6-v2 (sentence embeddings). Receives raw draft text via `POST /extract` and returns named entities with position offsets. Receives text batches via `POST /embed` and returns 384-dimensional embedding vectors.
 
-
-
-To preserve credits during development, a `DRY_RUN=true` environment flag skips the GLiNER call and returns hardcoded fixture entity data. All downstream Qdrant and embedding logic runs normally, so the full pipeline can be tested without spending credits on every iteration.
+To preserve credits during development, a `DRY_RUN=true` environment flag skips the HF Space calls and returns hardcoded fixture data for both entity extraction and embeddings. All downstream Qdrant and re-ranking logic runs normally.
 
 ---
 
 ### D. Vector Database (Qdrant Cloud Serverless)
 
-**Stack:** Qdrant (free serverless tier)
+**Stack:** Qdrant (free serverless tier), accessed via gRPC (port 6334)
 
-**Role:** Stores the vector embeddings of all existing published articles alongside their URL metadata. When the orchestrator receives entities from GLiNER, it generates a sentence-level context embedding for each entity using `all-MiniLM-L6-v2`, then queries Qdrant via cosine similarity search to find the most semantically relevant existing article.
+**Role:** Stores the vector embeddings of all existing published articles alongside their URL metadata. When the orchestrator receives entities from the HF Space, it generates a sentence-level context embedding for each entity, then queries Qdrant via cosine similarity search to find the most semantically relevant existing article.
 
 **Chunking strategy:** Articles are embedded at the paragraph or 3–5 sentence sliding window level, not sentence-by-sentence. This preserves enough surrounding context that short or ambiguous sentences ("Apple reported earnings") are disambiguated by their neighbors. The parent article URL is stored as metadata on each chunk.
 
@@ -89,9 +90,9 @@ To preserve credits during development, a `DRY_RUN=true` environment flag skips 
 
 ### E. Link Graph Store (Equity-Aware Ranking Layer)
 
-**Stack:** In-memory dict or lightweight persistent store (Redis), built at ingestion time
+**Stack:** Redis (Upstash free tier), built at ingestion time
 
-**Role:** Maintains a count of inbound internal links per URL across the site. This data is built once from the site's `sitemap.xml` at ingestion and updated incrementally as new articles are ingested. It powers the equity-aware re-ranking step that runs after Qdrant returns candidate URLs.
+**Role:** Maintains a count of inbound internal links per URL across the site. This data is built once from the site's `sitemap.xml` at ingestion and updated incrementally as new articles are ingested. Stored under Redis key `autolinks:link_graph` and restored into memory on server startup. It powers the equity-aware re-ranking step that runs after Qdrant returns candidate URLs.
 
 **How it's built:** On ingestion, the orchestrator parses the sitemap to inventory all URLs, then crawls each page's outbound internal links to construct the graph. Each URL is stored with its current inbound link count:
 
@@ -152,18 +153,18 @@ The API returns actionable, renderable data. The frontend maps each recommendati
 
 ## 6. Latency Model
 
-GLiNER API and Qdrant queries are structurally sequential (embeddings are generated after entities are returned), but both downstream calls are fast enough that the total round trip is well under the 3-second target on warm instances. The equity re-ranking step is an in-memory lookup and adds negligible latency.
+Entity extraction and embedding generation are both handled by the same HF Space. Qdrant queries are structurally sequential (embeddings are generated after entities are returned), but all calls are fast enough that the total round trip is well under the 3-second target on warm instances. The equity re-ranking step is an in-memory lookup and adds negligible latency.
 
 | Step | Estimated Duration |
 |---|---|
-| GLiNER API call (entity extraction) | 300–600ms |
-| Embedding generation (MiniLM, local) | ~100ms |
-| Qdrant cosine similarity query | 50–100ms |
+| HF Space: entity extraction (GLiNER2) | 300–600ms |
+| HF Space: embedding generation (MiniLM) | ~100ms |
+| Qdrant cosine similarity query (gRPC) | 50–100ms |
 | Equity re-ranking (in-memory) | <5ms |
-| Serialization + network overhead | ~50ms |
-| **Total (warm)** | **~500–855ms** |
+| JSON serialization (compiled Go) | ~1–2ms |
+| **Total (warm)** | **~470–820ms** |
 
-Cold starts on Render are mitigated by the cron ping. The GLiNER API is a managed service with no cold start exposure.
+Cold starts on Render are mitigated by the cron ping. The HF Space is a managed service with no cold start exposure.
 
 ---
 
@@ -237,7 +238,7 @@ When a site owner onboards, or when we ingest a corpus for testing, the flow is:
 
 1. **Parse the sitemap index** — hit `sitemap.xml` to find sub-sitemaps. For a WordPress site this is typically a Yoast-generated index pointing to `post-sitemap.xml`, `page-sitemap.xml`, etc. Only the post sitemap is relevant.
 2. **Extract all article URLs** — parse `post-sitemap.xml` to get every published URL with its last-modified date.
-3. **Crawl and extract clean text** — for each URL, fetch the raw HTML and extract clean article body text using `trafilatura`. This handles nav stripping, ads, footers, and comment sections automatically — no custom HTML parsing required.
+3. **Crawl and extract clean text** — for each URL, fetch the raw HTML and extract clean article body text using `go-trafilatura`. This handles nav stripping, ads, footers, and comment sections automatically — no custom HTML parsing required.
 4. **Chunk, embed, and upsert** — pipe the clean text through the existing `/ingest` endpoint: chunk into 3–5 sentence windows, generate embeddings with `all-MiniLM-L6-v2`, upsert into Qdrant with the source URL as metadata.
 5. **Build the link graph** — during the same crawl, extract all internal `<a href>` links from each page to populate the inbound link count map.
 
@@ -262,32 +263,11 @@ for url in urls:
     time.sleep(1)  # polite crawl delay
 ```
 
-**Concurrent crawling:** The naive sequential crawl (one URL, 1s sleep, repeat) takes 2–3 minutes for 150 articles. The ingestion pipeline instead uses `asyncio` with `httpx` and a bounded semaphore to parallelize fetches, reducing ingestion time to under 30 seconds and making the approach viable for any corpus over a few hundred articles.
+> Note: The above snippet is conceptual — the actual implementation uses `go-trafilatura` in Go with a goroutine worker pool for parallel crawling, retry with exponential backoff, and Redis-backed job tracking. See the migration plan (`docs/migrate-to-go.md`) for details.
 
-```python
-import asyncio
-import httpx
-import trafilatura
+**Concurrent crawling:** The naive sequential crawl (one URL, 1s sleep, repeat) takes 2–3 minutes for 150 articles. The ingestion pipeline instead uses a goroutine-based worker pool with a bounded semaphore to parallelize fetches, reducing ingestion time to under 30 seconds and making the approach viable for any corpus over a few hundred articles.
 
-MAX_CONCURRENT = 5  # bounded to avoid hammering the server
-
-async def fetch_and_extract(client, semaphore, url):
-    async with semaphore:
-        try:
-            response = await client.get(url, timeout=10)
-            text = trafilatura.extract(response.text)
-            return url, text
-        except Exception:
-            return url, None  # fail gracefully, log and skip
-
-async def crawl_all(urls):
-    semaphore = asyncio.Semaphore(MAX_CONCURRENT)
-    async with httpx.AsyncClient() as client:
-        tasks = [fetch_and_extract(client, semaphore, url) for url in urls]
-        return await asyncio.gather(*tasks)
-```
-
-The semaphore bounds concurrency to 5 simultaneous requests — enough to get meaningful parallelism without triggering rate limiting or overwhelming a shared host. Failures are caught per-URL and logged without crashing the entire run.
+The semaphore bounds concurrency to 5 simultaneous requests — enough to get meaningful parallelism without triggering rate limiting or overwhelming a shared host. Failures are caught per-URL and logged without crashing the entire run. Workers retry failed URLs up to 3 times with exponential backoff (30s → 60s → 120s) before sending them to a dead letter queue in Redis for manual inspection.
 
 **For ongoing ingestion:** The RSS feed (`/feed`) acts as a webhook equivalent — polling it periodically surfaces new articles as they are published, so only new content needs to be ingested rather than re-crawling the full sitemap.
 
@@ -320,7 +300,7 @@ The full ingestion of ~150 articles at 1 second per request takes approximately 
 
 ## 9. Testing
 
-The test suite is written in `pytest` and covers three layers: unit tests for core logic, integration tests for the API endpoints, and mocked tests for external service calls.
+The test suite is written in Go using the standard `testing` package with `testify/assert` for assertions and `miniredis` for Redis mocking. Tests are co-located with their target package as `*_test.go` files and cover three layers: unit tests for core logic, integration tests for the API endpoints, and mocked tests for external service calls. The full suite can be run with `go test ./...` from the `backend/` directory.
 
 ---
 
@@ -328,24 +308,25 @@ The test suite is written in `pytest` and covers three layers: unit tests for co
 
 **Re-ranking formula** — the equity-aware scoring function is pure logic with no external dependencies. Tests verify correctness across edge cases:
 
-```python
-def test_reranking_prefers_orphan_over_popular():
-    # an orphan with slightly lower similarity should outscore
-    # a well-linked page with slightly higher similarity
-    orphan_score = final_score(similarity=0.85, inbound_links=0, alpha=0.7)
-    popular_score = final_score(similarity=0.91, inbound_links=48, alpha=0.7)
-    assert orphan_score > popular_score
+```go
+func TestRerankingPrefersOrphanOverPopular(t *testing.T) {
+    orphanScore := finalScore(similarity: 0.85, inboundLinks: 0, alpha: 0.7)
+    popularScore := finalScore(similarity: 0.91, inboundLinks: 48, alpha: 0.7)
+    assert.Greater(t, orphanScore, popularScore)
+}
 
-def test_alpha_1_is_pure_similarity():
-    # at alpha=1.0, equity has no effect — scores should equal similarity
-    score = final_score(similarity=0.88, inbound_links=0, alpha=1.0)
-    assert score == pytest.approx(0.88)
+func TestAlpha1IsPureSimilarity(t *testing.T) {
+    score := finalScore(similarity: 0.88, inboundLinks: 0, alpha: 1.0)
+    assert.InDelta(t, 0.88, score, 0.001)
+}
 
-def test_zero_inbound_links_max_equity_need():
-    assert equity_need(inbound_links=0) == 1.0
+func TestZeroInboundLinksMaxEquityNeed(t *testing.T) {
+    assert.Equal(t, 1.0, equityNeed(0))
+}
 
-def test_high_inbound_links_low_equity_need():
-    assert equity_need(inbound_links=100) < 0.02
+func TestHighInboundLinksLowEquityNeed(t *testing.T) {
+    assert.Less(t, equityNeed(100), 0.02)
+}
 ```
 
 **Chunking logic** — verifies that the sliding window chunker produces correctly sized chunks and doesn't drop content at article boundaries.
@@ -354,37 +335,32 @@ def test_high_inbound_links_low_equity_need():
 
 ---
 
-### Integration Tests (FastAPI TestClient)
+### Integration Tests (httptest)
 
-FastAPI's built-in `TestClient` lets the full API be exercised in-process with no running server required. External calls (GLiNER, Qdrant) are mocked so tests are fast, free, and deterministic.
+Go's `httptest` package lets the full API be exercised in-process with no running server required. External calls (HF Space, Qdrant) are mocked so tests are fast, free, and deterministic.
 
-```python
-from fastapi.testclient import TestClient
-from unittest.mock import patch
-from main import app
+```go
+func TestRecommendReturnsCorrectShape(t *testing.T) {
+    // Mock entity extraction and Qdrant search
+    router := chi.NewRouter()
+    router.Post("/api/v1/recommend", makeRecommendHandler(mockExtract, mockSearch))
 
-client = TestClient(app)
+    body := `{"text": "We saw gains through CUDA optimization.", "alpha": 0.7, "min_similarity": 0.65}`
+    req := httptest.NewRequest("POST", "/api/v1/recommend", strings.NewReader(body))
+    req.Header.Set("Content-Type", "application/json")
+    w := httptest.NewRecorder()
+    router.ServeHTTP(w, req)
 
-def test_recommend_returns_correct_shape():
-    mock_entities = [{"text": "CUDA optimization", "start": 10, "end": 26}]
-    mock_qdrant_results = [{"url": "https://site.com/gpu-guide", "score": 0.91}]
+    assert.Equal(t, 200, w.Code)
+    var resp RecommendResponse
+    json.Unmarshal(w.Body.Bytes(), &resp)
+    assert.Equal(t, "success", resp.Status)
+    assert.NotEmpty(t, resp.Recommendations)
+    assert.Equal(t, "CUDA optimization", resp.Recommendations[0].ExactPhrase)
+}
 
-    with patch("main.call_gliner", return_value=mock_entities), \
-         patch("main.query_qdrant", return_value=mock_qdrant_results):
-
-        response = client.post("/recommend", json={"text": "We saw gains through CUDA optimization."})
-        assert response.status_code == 200
-        data = response.json()
-        assert "recommendations" in data
-        assert data["recommendations"][0]["exact_phrase"] == "CUDA optimization"
-
-def test_recommend_empty_text_returns_400():
-    response = client.post("/recommend", json={"text": ""})
-    assert response.status_code == 400
-
-def test_health_endpoint():
-    response = client.get("/health")
-    assert response.status_code == 200
+func TestRecommendEmptyTextReturns400(t *testing.T) { ... }
+func TestHealthEndpoint(t *testing.T) { ... }
 ```
 
 ---
@@ -394,10 +370,10 @@ def test_health_endpoint():
 | Component | Service | Cost |
 |---|---|---|
 | Frontend | Vercel | Free |
-| Orchestrator + Embeddings | FastAPI on Render | Free |
-| Named Entity Recognition | GLiNER XL 1B (pioneer.ai) | $75 credit |
-| Vector Database | Qdrant Cloud Serverless | Free |
-| Link Graph Store | In-memory / Redis | Free |
-| Cron keepalive | cron-job.org | Free |
+| Orchestrator + Background Jobs | Go/chi on Render (single web service, goroutine worker pool in-process) | Free |
+| Named Entity Recognition + Embeddings | HF Space (eros483/autolinks-models) | Free (zero-gpu CPU basic) |
+| Vector Database | Qdrant Cloud Serverless (gRPC, port 6334) | Free |
+| Link Graph Store + Job State + DLQ | Upstash Redis (free tier) | Free |
+| Cron keepalive | cron-job.org or GitHub Actions | Free |
 | **Total ongoing infrastructure** | | **$0** |
 

@@ -2,10 +2,10 @@
   "project": "AutoLinks",
   "last_updated": "2026-07-20",
   "summary": {
-    "total": 27,
+    "total": 28,
     "completed": 27,
     "in_progress": 0,
-    "planned": 0,
+    "planned": 1,
     "tests_passing": 19,
     "tests_failing": 0,
     "tests_missing": 0
@@ -572,6 +572,37 @@
       "notes": "Pioneer.ai stopped offering free API keys. This is the direct trigger for the v2 migration. HF Space format is simpler than Pioneer's OpenAI-chat wrapper, reducing code complexity.",
       "added": "2026-07-20",
       "completed": "2026-07-20"
+    },
+    {
+      "id": "F028",
+      "name": "Go Backend Migration",
+      "description": "Rewrite the entire backend from Python/FastAPI to Go/chi. Replace Celery with in-process goroutine worker pool. Swap trafilatura for go-trafilatura. Remove local sentence-transformers fallback. Rewrite all 52 tests and 3 eval scripts in Go.",
+      "status": "planned",
+      "priority": "high",
+      "module": "backend/ (entire directory rewrite)",
+      "design_doc": "docs/migrate-to-go.md",
+      "tests": {
+        "status": "planned",
+        "files": [],
+        "notes": "All 52 existing Python tests to be rewritten as co-located *_test.go files in internal/ and eval/. New tests for goroutine worker pool retry/DLQ cycle. Use testify/assert for assertions and miniredis for Redis mocking. Targeted improvements: (1) worker pool concurrency stress tests, (2) gRPC Qdrant client integration tests."
+      },
+      "subtasks": [
+        "Phase 1: Project scaffold (cmd/server/main.go, config, logger, qdrant client)",
+        "Phase 2: Core modules (extract, embed, search, rerank, ingest)",
+        "Phase 3: Async job system (jobs/manager, jobs/worker goroutine pool, jobs/dlq)",
+        "Phase 4: HTTP handlers (chi router, all 8 endpoints, CORS)",
+        "Phase 5: Models (request/response structs with JSON tags)",
+        "Phase 6: Tests (52 rewritten + new worker pool tests)",
+        "Phase 7: Eval scripts (latency, precision, equity) rewritten as Go binaries",
+        "Phase 8: Dockerfile (multi-stage build, alpine runtime, ~15MB image)",
+        "Phase 9: Documentation (AGENTS.md, design.md, deployment.md, api.md, features.json)",
+        "Phase 10: Celery removal (delete celery_app.py, tasks.py, worker.py, worker.Dockerfile)",
+        "Phase 11: sentence-transformers removal (delete local fallback in embed.py → embeddings.go)",
+        "Phase 12: CI/CD update (GitHub Actions: go test, go vet, golangci-lint)"
+      ],
+      "notes": "Goroutine pool (4 workers, semaphore-bounded at 5 concurrent fetches per job, 3 retries with exponential backoff 30s→60s→120s, DLQ in Redis) replaces Celery entirely. go-trafilatura (F1=0.904) replaces Python trafilatura. No external task queue library needed — only one background task type exists. Expected results: image size ~15MB (vs ~400MB), RAM usage ~25MB (vs ~200MB), cold start <1s (vs 5-10s), latency 15-30% lower.",
+      "added": "2026-07-20",
+      "completed": null
     }
   ]
 }
