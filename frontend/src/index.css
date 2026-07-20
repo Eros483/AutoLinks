@@ -267,25 +267,25 @@ body {
 .al-page {
   flex: 1;
   min-height: 0;
-  padding: 36px 32px 56px;
+  padding: 32px;
 }
 
 .al-home {
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  justify-content: center;
+  gap: 120px;
+  min-height: calc(100vh - 52px);
 }
 
 .al-hero {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 22px;
+  gap: 28px;
 }
 
-.al-hero-copy,
-.al-surface-card,
-.al-flow-item {
+.al-surface-card {
   background: var(--sf);
   border: 1px solid var(--hl);
   border-radius: var(--r-app);
@@ -305,32 +305,30 @@ body {
   text-align: center;
 }
 
-.al-hero-copy {
-  width: min(100%, 820px);
-  padding: 28px;
+.al-hero-subtitle {
+  font-size: clamp(1.4rem, 2.5vw, 1.6rem);
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  color: var(--ink-m);
+  max-width: 700px;
+  text-align: center;
 }
 
-.al-hero-title {
-  max-width: 14ch;
-  font-size: clamp(2rem, 4vw, 3.4rem);
-  line-height: 0.95;
-  letter-spacing: -0.05em;
-  margin-bottom: 16px;
-}
-
-.al-hero-text,
 .al-section-copy,
 .al-surface-card p,
-.al-flow-item p,
 .al-preview-blurb,
 .al-faq-card p {
   color: var(--ink-m);
   line-height: 1.7;
 }
 
-.al-hero-text {
-  max-width: 58ch;
-  margin-bottom: 22px;
+.al-hero-description {
+  max-width: 660px;
+  text-align: center;
+  color: var(--ink-s);
+  font-size: 1.05rem;
+  line-height: 1.7;
 }
 
 .al-hero-actions {
@@ -410,30 +408,9 @@ body {
   margin-bottom: 10px;
 }
 
-.al-flow-list {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.al-flow-item {
-  display: flex;
-  gap: 16px;
-  padding: 18px;
-}
-
-.al-flow-step {
-  flex: none;
-  display: inline-flex;
+.al-section-heading--centered {
   align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--r-full);
-  background: color-mix(in srgb, var(--ac-hl) 75%, var(--sf));
-  color: var(--ac);
-  font-family: 'JetBrains Mono', 'Courier New', monospace;
-  font-size: var(--t-body-sm);
+  text-align: center;
 }
 
 .al-faq {
@@ -901,9 +878,7 @@ body {
     padding: 18px;
   }
 
-  .al-hero,
   .al-feature-grid,
-  .al-flow-list,
   .al-faq-grid,
   .al-sitemap-grid {
     grid-template-columns: 1fr;
