@@ -10,7 +10,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 COPY backend/pyproject.toml backend/uv.lock /app/backend/
 
-RUN cd /app/backend && uv sync --frozen --no-dev
+RUN cd /app/backend && uv sync --frozen --no-dev && .venv/bin/uvicorn --version
 
 COPY backend/ /app/backend/
 
