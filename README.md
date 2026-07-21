@@ -11,9 +11,7 @@
   <img src="https://img.shields.io/badge/chi-v5-00ADD8.svg?logo=go&logoColor=white" alt="chi">
   <img src="https://img.shields.io/badge/Qdrant-1.18+-blue.svg" alt="Qdrant">
   <img src="https://img.shields.io/badge/GLiNER2-HF%20Space-blue.svg" alt="GLiNER2">
-  <a href="https://github.com/anomalyco/AutoLinks/actions"><img src="https://img.shields.io/github/actions/workflow/status/anomalyco/AutoLinks/ci.yml?branch=main" alt="CI"></a>
   <img src="https://img.shields.io/badge/React-18.2-blue.svg" alt="React">
-  <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License">
 <!-- Code Quality -->
   <a href="https://go.dev/blog/gofmt">
     <img src="https://img.shields.io/badge/code%20style-gofmt-00ADD8.svg?logo=go&logoColor=white" alt="Code Style: go fmt">
@@ -25,14 +23,6 @@
   </a>
   <a href="https://autolinks.vercel.app">
     <img src="https://img.shields.io/badge/Vercel-Deployed-black?logo=vercel" alt="Vercel Deployment">
-  </a>
-
-  <!-- Project Activity & License -->
-  <a href="https://github.com/yourusername/AutoLinks/commits/main">
-    <img src="https://img.shields.io/github/last-commit/Eros483/AutoLinks?logo=github" alt="Last Commit">
-  </a>
-  <a href="https://opensource.org/licenses/MIT">
-    <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT">
   </a>
 </p>
 </center>
