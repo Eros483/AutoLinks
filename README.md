@@ -1,7 +1,6 @@
 <div align="center">
 
 # AutoLinks
-## 
 
 </center>
 
@@ -34,100 +33,56 @@
 
 ## Features
 
-- **Named Entity Extraction** - Uses GLiNER XL 1B to identify entities from draft text
-- **Semantic Search** - Vector similarity search using all-MiniLM-L6-v2 embeddings
+- **Named Entity Extraction** - Uses GLiNER to identify entities from draft text
+- **Semantic Search** - Vector similarity search using embeddings
 - **Equity-Aware Ranking** - Re-ranks recommendations to prioritize orphan pages
 - **Sitemap Ingestion** - Crawl and index articles from any sitemap URL
 - **Graph Diagnostics** - Logs orphan counts, top inbound URLs, and skipped sitemap targets for debugging link-graph quality
-- **Synthetic Equity Eval** - Deterministic benchmark mode for testing equity improvements without relying on a real sitemap
 
 ---
 
 ##  Local Usage
 
-### 1. Clone & Setup
+### 1. Install everything
 
 ```bash
-git clone https://github.com/yourusername/AutoLinks.git
-cd AutoLinks
+make install
 ```
 
-### 2. Backend Setup
+This scaffolds `.env`, downloads Go modules, and installs npm packages.
+
+### 2. Deploy HF Space (inference)
 
 ```bash
-cd backend
-
-# Download Go dependencies
-go mod download
+make deploy-inference
 ```
 
-### 3. Configure Environment
+Uploads the `inference/` directory to the HF Space at `Eros483/autolinks-models`.
+
+### 3. Configure `.env`
+
+Edit `.env` with your credentials (HF token, Qdrant URL, Redis URL, etc.).
+
+### 4. Run
 
 ```bash
-# Copy example env file
-cp .env.example .env
-
-# Edit .env with your credentials:
-# - MODELS_SPACE_URL: HF Space for GLiNER + embeddings
-# - HF_TOKEN: Hugging Face access token
-# - QDRANT_URL: Qdrant endpoint (http://localhost:6334 or cloud)
-# - QDRANT_API_KEY: Qdrant API key (optional for local)
-# - REDIS_URL: Redis for job queue and link graph
-# - GROQ_API_KEY: To run the precision eval (LLM-as-a-judge)
+make run             # starts qdrant, backend (:8000), and frontend (:3000)
+make stop            # kill all servers + stop qdrant
 ```
 
-### 4. Run the Server Locally
+### 5. Lint, Test & Check
 
 ```bash
-# Spinning up qdrant docker container
-docker run -p 6333:6333 -p 6334:6334 -v $(pwd)/qdrant_storage:/qdrant/storage qdrant/qdrant
-
-# Development (with DRY_RUN for fixture data)
-go run ./cmd/server
+make check           # format + vet + lint + test
 ```
 
-The API will be available at `http://localhost:8000`.
-
-### 5. Frontend Setup
-
-The frontend is a React 18 + Vite application using Zustand for state management and vanilla CSS (no Tailwind).
+### 6. Build
 
 ```bash
-cd frontend
-
-# Install dependencies
-npm install
-
-# Run development server
-npm run dev
+make build           # Go binary at backend/server
 ```
 
-The frontend runs on `http://localhost:3000` and reads the backend API base URL from the repo-root `.env` file using `VITE_API_BASE_URL`.
-
-**Environment Requirements:**
-- Backend must be running at the URL configured in `VITE_API_BASE_URL`
-- Qdrant must be running for the backend to return recommendations
-
-Example local setting:
-
-```bash
-VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
-```
-
-### 6. Run Tests
-
-```bash
-cd backend
-
-# All tests
-go test ./...
-
-# With race detector (recommended for goroutine-heavy code)
-go test -race ./...
-
-# With coverage
-go test -coverprofile=coverage.out ./...
-```
+For the full command reference (coverage, benchmarks, eval tests, tidy, etc.), see [AGENTS.md](AGENTS.md).
 
 ---
 
