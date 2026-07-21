@@ -12,20 +12,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: astral-sh/setup-uv@v3
+      - uses: actions/setup-go@v5
         with:
-          python-version: "3.13"
-
-      - name: Install dependencies
-        run: uv sync --dev
-        working-directory: backend
+          go-version: "1.22"
 
       - name: Run tests
-        run: uv run pytest --cov=. --cov-report=term
+        run: go test -race ./...
+        working-directory: backend
+
+      - name: Run vet
+        run: go vet ./...
         working-directory: backend
 
       - name: Check formatting
-        run: uv run black --check .
+        run: go fmt ./... && git diff --exit-code
         working-directory: backend
 
   frontend:
