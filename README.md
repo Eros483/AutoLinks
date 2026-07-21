@@ -51,17 +51,15 @@ make install
 
 This scaffolds `.env`, downloads Go modules, and installs npm packages.
 
-### 2. Deploy HF Space (inference)
+### 2. Configure `.env` and deploy ML Inference
+
+Edit `.env` with your credentials (HF token, Qdrant URL, Redis URL, etc.).
 
 ```bash
 make deploy-inference
 ```
 
-Uploads the `inference/` directory to the HF Space at `Eros483/autolinks-models`.
-
-### 3. Configure `.env`
-
-Edit `.env` with your credentials (HF token, Qdrant URL, Redis URL, etc.).
+Post deployment, add HF space URL to .env
 
 ### 4. Run
 
@@ -101,19 +99,13 @@ For the full command reference (coverage, benchmarks, eval tests, tidy, etc.), s
 |----------|-------------|---------|
 | `MODELS_SPACE_URL` | HF Space for GLiNER + MiniLM inference | - |
 | `HF_TOKEN` | Hugging Face access token | - |
-| `QDRANT_API_KEY` | Optional Qdrant API key for hosted deployments | empty |
+| `QDRANT_API_KEY` | Optional Qdrant API key for hosted deployments | - |
 | `QDRANT_URL` | Qdrant endpoint (HTTP for local, HTTPS for cloud) | `http://localhost:6334` |
 | `REDIS_URL` | Redis for job queue and link graph | - |
 | `GROQ_API_KEY` | Groq LLM for precision eval | - |
 | `DRY_RUN` | Skip HF Space calls, use fixtures | `false` |
 | `DEBUG` | Enable debug mode | `false` |
 | `RERANK_ALPHA` | Similarity weight for re-ranking | `0.7` |
-
----
-
-## License
-
-MIT
 
 ---
 
