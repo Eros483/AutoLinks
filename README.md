@@ -11,12 +11,6 @@
   <img src="https://img.shields.io/badge/Qdrant-1.18+-blue.svg" alt="Qdrant">
   <img src="https://img.shields.io/badge/GLiNER2-HF%20Space-blue.svg" alt="GLiNER2">
   <img src="https://img.shields.io/badge/React-18.2-blue.svg" alt="React">
-<!-- Code Quality -->
-  <a href="https://go.dev/blog/gofmt">
-    <img src="https://img.shields.io/badge/code%20style-gofmt-00ADD8.svg?logo=go&logoColor=white" alt="Code Style: go fmt">
-  </a>
-
-  <!-- Deployments -->
   <a href="https://autolinks-api.onrender.com">
     <img src="https://img.shields.io/badge/Render-Deployed-success?logo=render" alt="Render Deployment">
   </a>
