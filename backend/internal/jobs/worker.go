@@ -2,12 +2,15 @@
 package jobs
 
 import (
+	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/anomalyco/autolinks/internal/ingest"
 	"github.com/anomalyco/autolinks/internal/logger"
 	"github.com/anomalyco/autolinks/internal/rerank"
+	"golang.org/x/sync/semaphore"
 )
 
 const (
@@ -112,17 +115,45 @@ func (wp *WorkerPool) processJob(job *Job) error {
 	outboundMap := make(map[string][]string)
 	done := 0
 
-	for i, rawURL := range urls {
-		links := ingest.StreamFetchEmbedUpsert(rawURL)
-		if links != nil {
-			done++
-			outboundMap[rawURL] = links
-		}
+	sem := semaphore.NewWeighted(maxConcurrent)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	var jobErr error
+	ctx := context.Background()
 
-		if uErr := UpdateJob(job.JobID, map[string]interface{}{"articles_done": i + 1}); uErr != nil {
-			logger.Error("Failed to update job %s progress: %s", job.JobID, uErr)
-		}
+	for _, rawURL := range urls {
+		wg.Add(1)
+		go func(url string) {
+			defer wg.Done()
+
+			if err := sem.Acquire(ctx, 1); err != nil {
+				mu.Lock()
+				if jobErr == nil {
+					jobErr = fmt.Errorf("semaphore acquire: %w", err)
+				}
+				mu.Unlock()
+				return
+			}
+			defer sem.Release(1)
+
+			links := ingest.StreamFetchEmbedUpsert(url)
+
+			mu.Lock()
+			if links != nil {
+				done++
+				outboundMap[url] = links
+			}
+			mu.Unlock()
+		}(rawURL)
 	}
+
+	wg.Wait()
+
+	if jobErr != nil {
+		return jobErr
+	}
+
+	_ = UpdateJob(job.JobID, map[string]interface{}{"articles_done": done})
 
 	job.ArticlesDone = done
 

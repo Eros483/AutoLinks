@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"math"
 	"net/http"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/anomalyco/autolinks/internal/config"
@@ -23,12 +25,11 @@ import (
 )
 
 const (
-	searchCandidateLimit        = 100
-	maxRecommendations          = 10
-	maxRecommendationsPerEntity = 3
-	defaultMinSimilarity        = 0.65
-	defaultAlpha                = 0.7
-	defaultMinCharLength        = 5
+	searchCandidateLimit = 100
+	maxRecommendations   = 10
+	defaultMinSimilarity = 0.65
+	defaultAlpha         = 0.7
+	defaultMinCharLength = 5
 )
 
 // WorkerPool is the shared worker pool instance, set by main.go.
@@ -103,40 +104,88 @@ func handleRecommend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	trimmed := entities
+	if len(trimmed) > 10 {
+		trimmed = trimmed[:10]
+	}
+
+	var queries []string
+	var validEntities []extract.Entity
+	for _, e := range trimmed {
+		if len(e.Text) > 50 {
+			continue
+		}
+		q := e.Text + " - " + req.Text[:int(math.Min(float64(len(req.Text)), 200))]
+		queries = append(queries, q)
+		validEntities = append(validEntities, e)
+	}
+
+	if len(queries) == 0 {
+		writeError(w, http.StatusBadRequest, "No high-quality entities found in text")
+		return
+	}
+
+	allEmbeddings, err := embed.EmbedBatch(queries)
+	if err != nil {
+		logger.Error("Batch embed failed: %s", err)
+		recommendations := []models.Recommendation{}
+		latencyMs := time.Since(startTime).Milliseconds()
+		writeJSON(w, http.StatusOK, models.RecommendResponse{
+			Status:          "success",
+			LatencyMs:       latencyMs,
+			Recommendations: recommendations,
+		})
+		return
+	}
+
+	type entityResult struct {
+		entity     extract.Entity
+		candidates []rerank.Candidate
+	}
+
+	resultCh := make(chan entityResult, len(validEntities))
+	var wg sync.WaitGroup
+
+	for i, e := range validEntities {
+		wg.Add(1)
+		go func(entity extract.Entity, embedding []float64) {
+			defer wg.Done()
+
+			candidates, err := search.SearchSimilar(embedding, searchCandidateLimit, req.MinSimilarity)
+			if err != nil {
+				logger.Error("Search failed for entity '%s': %s", entity.Text, err)
+				resultCh <- entityResult{entity: entity}
+				return
+			}
+
+			var searchCandidates []rerank.Candidate
+			for _, c := range candidates {
+				searchCandidates = append(searchCandidates, rerank.Candidate{
+					URL:       c.URL,
+					ChunkText: c.ChunkText,
+					Score:     c.Score,
+				})
+			}
+
+			resultCh <- entityResult{entity: entity, candidates: searchCandidates}
+		}(e, allEmbeddings[i])
+	}
+
+	go func() {
+		wg.Wait()
+		close(resultCh)
+	}()
+
+	var allResults []entityResult
+	for r := range resultCh {
+		allResults = append(allResults, r)
+	}
+
 	var recommendations []models.Recommendation
 	selectedURLs := make(map[string]bool)
 
-	for _, entity := range entities {
-		if len(recommendations) >= maxRecommendations {
-			break
-		}
-		if len(entity.Text) > 50 {
-			continue
-		}
-
-		query := entity.Text + " - " + req.Text[:int(math.Min(float64(len(req.Text)), 200))]
-		queryEmbedding, err := embed.EmbedText(query)
-		if err != nil {
-			logger.Error("Embed failed for entity '%s': %s", entity.Text, err)
-			continue
-		}
-
-		candidates, err := search.SearchSimilar(queryEmbedding, searchCandidateLimit, req.MinSimilarity)
-		if err != nil {
-			logger.Error("Search failed for entity '%s': %s", entity.Text, err)
-			continue
-		}
-
-		var searchCandidates []rerank.Candidate
-		for _, c := range candidates {
-			searchCandidates = append(searchCandidates, rerank.Candidate{
-				URL:       c.URL,
-				ChunkText: c.ChunkText,
-				Score:     c.Score,
-			})
-		}
-
-		reranked := rerank.RerankCandidates(searchCandidates, req.Alpha, selectedURLs)
+	for _, result := range allResults {
+		reranked := rerank.RerankCandidates(result.candidates, req.Alpha, selectedURLs)
 
 		for _, candidate := range reranked {
 			if len(recommendations) >= maxRecommendations {
@@ -149,7 +198,7 @@ func handleRecommend(w http.ResponseWriter, r *http.Request) {
 			}
 
 			recommendations = append(recommendations, models.Recommendation{
-				ExactPhrase:      entity.Text,
+				ExactPhrase:      result.entity.Text,
 				ContextSnippet:   contextSnippet,
 				SuggestedURL:     candidate.URL,
 				SimilarityScore:  candidate.Score,
@@ -158,21 +207,19 @@ func handleRecommend(w http.ResponseWriter, r *http.Request) {
 				InboundLinkCount: candidate.InboundLinkCount,
 			})
 			selectedURLs[candidate.URL] = true
-
-			if len(recommendations) >= maxRecommendations {
-				break
-			}
-			if len(recommendations) >= maxRecommendationsPerEntity*(len(recommendations)/maxRecommendationsPerEntity+1)-maxRecommendationsPerEntity+1 {
-			}
 		}
 	}
 
-	latencyMs := time.Since(startTime).Milliseconds()
-	logger.Info("Recommend completed in %dms", latencyMs)
+	sort.Slice(recommendations, func(i, j int) bool {
+		return recommendations[i].FinalScore > recommendations[j].FinalScore
+	})
 
 	if len(recommendations) > maxRecommendations {
 		recommendations = recommendations[:maxRecommendations]
 	}
+
+	latencyMs := time.Since(startTime).Milliseconds()
+	logger.Info("Recommend completed in %dms", latencyMs)
 
 	writeJSON(w, http.StatusOK, models.RecommendResponse{
 		Status:          "success",

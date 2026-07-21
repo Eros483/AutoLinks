@@ -56,8 +56,14 @@ func ExtractEntities(text string) []Entity {
 		return nil
 	}
 
+	var rawJSON string
+	if err := json.Unmarshal([]byte(result), &rawJSON); err != nil {
+		logger.Error("failed to unmarshal entity wrapper: %s", err)
+		return nil
+	}
+
 	var entities []Entity
-	if err := json.Unmarshal([]byte(result), &entities); err != nil {
+	if err := json.Unmarshal([]byte(rawJSON), &entities); err != nil {
 		logger.Error("failed to unmarshal entities: %s", err)
 		return nil
 	}
