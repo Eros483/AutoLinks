@@ -6,7 +6,9 @@ install:
 	cd frontend && npm install
 
 deploy-inference:
-	hf upload Eros483/autolinks-models ./inference/ --type space
+	@read -p "HF Space repo [Eros483/autolinks-models]: " repo; \
+	repo=$${repo:-Eros483/autolinks-models}; \
+	hf upload $$repo ./inference/ --type space
 
 dev-backend:
 	cd backend && go run ./cmd/server
