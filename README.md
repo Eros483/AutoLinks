@@ -7,16 +7,16 @@
 
 <center>
 <p>
-  <img src="https://img.shields.io/badge/Python-3.13+-blue.svg" alt="Python">
-  <img src="https://img.shields.io/badge/FastAPI-0.136+-blue.svg" alt="FastAPI">
-  <img src="https://img.shields.io/badge/Qdrant-1.17+-blue.svg" alt="Qdrant">
+  <img src="https://img.shields.io/badge/Go-1.25+-00ADD8.svg?logo=go&logoColor=white" alt="Go">
+  <img src="https://img.shields.io/badge/chi-v5-00ADD8.svg?logo=go&logoColor=white" alt="chi">
+  <img src="https://img.shields.io/badge/Qdrant-1.18+-blue.svg" alt="Qdrant">
   <img src="https://img.shields.io/badge/GLiNER2-HF%20Space-blue.svg" alt="GLiNER2">
   <a href="https://github.com/anomalyco/AutoLinks/actions"><img src="https://img.shields.io/github/actions/workflow/status/anomalyco/AutoLinks/ci.yml?branch=main" alt="CI"></a>
   <img src="https://img.shields.io/badge/React-18.2-blue.svg" alt="React">
   <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License">
 <!-- Code Quality -->
-  <a href="https://github.com/psf/black">
-    <img src="https://img.shields.io/badge/code%20style-black-000000.svg" alt="Code Style: Black">
+  <a href="https://go.dev/blog/gofmt">
+    <img src="https://img.shields.io/badge/code%20style-gofmt-00ADD8.svg?logo=go&logoColor=white" alt="Code Style: go fmt">
   </a>
 
   <!-- Deployments -->
@@ -67,9 +67,8 @@ cd AutoLinks
 ```bash
 cd backend
 
-# Using uv as the project manager.
-uv init
-uv add -r requirements.txt
+# Download Go dependencies
+go mod download
 ```
 
 ### 3. Configure Environment
@@ -79,10 +78,12 @@ uv add -r requirements.txt
 cp .env.example .env
 
 # Edit .env with your credentials:
-# - PIONEER_API_KEY: Get from https://pioneer.ai
-# - QDRANT_URL: Local Qdrant URL (default: http://localhost:6333)
-# - QDRANT_API_KEY: Leave empty for local Qdrant
-# - GROQ_API_KEY: To run tests for LLM as a judge
+# - MODELS_SPACE_URL: HF Space for GLiNER + embeddings
+# - HF_TOKEN: Hugging Face access token
+# - QDRANT_URL: Qdrant endpoint (http://localhost:6334 or cloud)
+# - QDRANT_API_KEY: Qdrant API key (optional for local)
+# - REDIS_URL: Redis for job queue and link graph
+# - GROQ_API_KEY: To run the precision eval (LLM-as-a-judge)
 ```
 
 ### 4. Run the Server Locally
@@ -91,11 +92,11 @@ cp .env.example .env
 # Spinning up qdrant docker container
 docker run -p 6333:6333 -p 6334:6334 -v $(pwd)/qdrant_storage:/qdrant/storage qdrant/qdrant
 
-# Development (with auto-reload)
-uvicorn backend.main:app --reload
+# Development (with DRY_RUN for fixture data)
+go run ./cmd/server
 ```
 
-The API will be available at `http://localhost:8000`. Visit `http://localhost:8000/docs` for the interactive Swagger UI.
+The API will be available at `http://localhost:8000`.
 
 ### 5. Frontend Setup
 
@@ -129,14 +130,13 @@ VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
 cd backend
 
 # All tests
-pytest
+go test ./...
 
-# Specific test directories
-pytest tests/test_api/
-pytest tests/test_core/
+# With race detector (recommended for goroutine-heavy code)
+go test -race ./...
 
 # With coverage
-pytest --cov=. --cov-report=html
+go test -coverprofile=coverage.out ./...
 ```
 
 ---
@@ -154,11 +154,13 @@ pytest --cov=. --cov-report=html
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `PIONEER_API_KEY` | GLiNER API key from pioneer.ai | - |
+| `MODELS_SPACE_URL` | HF Space for GLiNER + MiniLM inference | - |
+| `HF_TOKEN` | Hugging Face access token | - |
 | `QDRANT_API_KEY` | Optional Qdrant API key for hosted deployments | empty |
-| `QDRANT_URL` | Qdrant URL | `http://localhost:6333` |
-| `GROQ_API_KEY` | LLM served via Groq for LLM as a judge | - |
-| `DRY_RUN` | Skip GLiNER API, use fixtures | `false` |
+| `QDRANT_URL` | Qdrant endpoint (HTTP for local, HTTPS for cloud) | `http://localhost:6334` |
+| `REDIS_URL` | Redis for job queue and link graph | - |
+| `GROQ_API_KEY` | Groq LLM for precision eval | - |
+| `DRY_RUN` | Skip HF Space calls, use fixtures | `false` |
 | `DEBUG` | Enable debug mode | `false` |
 | `RERANK_ALPHA` | Similarity weight for re-ranking | `0.7` |
 
@@ -170,5 +172,6 @@ MIT
 
 ---
 
-## Note
-Must use a smaller sitemap for the deployed version, as Render runs into memory issues.
+## License
+
+MIT
