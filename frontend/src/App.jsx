@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Analytics } from '@vercel/analytics/react'
 import Header from './components/Header'
 import LandingPage from './components/LandingPage'
 import Layout from './components/Layout'
@@ -25,6 +26,7 @@ function App() {
         <Header currentView={currentView} onNavigate={setCurrentView} />
         {renderCurrentView()}
       </div>
+      <Analytics />
     </div>
   )
 }
