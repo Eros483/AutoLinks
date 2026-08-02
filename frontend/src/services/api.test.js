@@ -27,7 +27,9 @@ describe('sitemap api helpers', () => {
 
     const result = await fetchSitemapStatus()
 
-    expect(fetch).toHaveBeenCalledWith('http://127.0.0.1:8000/api/v1/link-graph')
+    expect(fetch).toHaveBeenCalledWith('http://127.0.0.1:8000/api/v1/link-graph', {
+      headers: { 'Content-Type': 'application/json' },
+    })
     expect(result).toEqual({
       hasSitemap: true,
       urlCount: 12,

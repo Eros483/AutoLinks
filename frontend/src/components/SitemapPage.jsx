@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useAuth } from '@clerk/clerk-react'
 import { fetchSitemapStatus, ingestSitemap } from '../services/api'
 
 function SitemapPage() {
@@ -10,13 +11,14 @@ function SitemapPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [submitMessage, setSubmitMessage] = useState('')
+  const { getToken } = useAuth()
 
   const loadStatus = async () => {
     setStatusLoading(true)
     setStatusError('')
 
     try {
-      const result = await fetchSitemapStatus()
+      const result = await fetchSitemapStatus(getToken)
       setHasSitemap(result.hasSitemap)
       setUrlCount(result.urlCount)
     } catch (err) {
@@ -45,7 +47,7 @@ function SitemapPage() {
     setSubmitMessage('')
 
     try {
-      const result = await ingestSitemap(sitemapUrl.trim())
+      const result = await ingestSitemap(sitemapUrl.trim(), 5, getToken)
       setSubmitMessage(`Crawl started successfully. Indexed ${result.chunksIngested} pages from the sitemap.`)
       await loadStatus()
     } catch (err) {

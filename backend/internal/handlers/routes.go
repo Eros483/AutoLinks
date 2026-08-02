@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/anomalyco/autolinks/internal/auth"
 	"github.com/anomalyco/autolinks/internal/config"
 	"github.com/anomalyco/autolinks/internal/embed"
 	"github.com/anomalyco/autolinks/internal/extract"
@@ -36,7 +37,7 @@ const (
 var WorkerPool *jobs.WorkerPool
 
 // NewRouter creates and configures the chi router with all endpoints.
-func NewRouter() chi.Router {
+func NewRouter(tokenVerifier auth.TokenVerifier) chi.Router {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
@@ -51,15 +52,19 @@ func NewRouter() chi.Router {
 		MaxAge:           300,
 	}))
 
-	r.Route("/api/v1", func(r chi.Router) {
-		r.Post("/recommend", handleRecommend)
-		r.Post("/ingest", handleIngest)
-		r.Post("/ingest/sitemap", handleIngestSitemap)
-		r.Get("/ingest/status/{jobID}", handleIngestStatus)
-		r.Get("/ingest/result/{jobID}", handleIngestResult)
-		r.Post("/ingest/retry-dead", handleRetryDead)
-		r.Get("/health", handleHealth)
-		r.Get("/link-graph", handleLinkGraph)
+	r.Get("/api/v1/health", handleHealth)
+
+	r.Group(func(r chi.Router) {
+		if tokenVerifier != nil {
+			r.Use(auth.RequireAuth(tokenVerifier))
+		}
+		r.Post("/api/v1/recommend", handleRecommend)
+		r.Post("/api/v1/ingest", handleIngest)
+		r.Post("/api/v1/ingest/sitemap", handleIngestSitemap)
+		r.Get("/api/v1/ingest/status/{jobID}", handleIngestStatus)
+		r.Get("/api/v1/ingest/result/{jobID}", handleIngestResult)
+		r.Post("/api/v1/ingest/retry-dead", handleRetryDead)
+		r.Get("/api/v1/link-graph", handleLinkGraph)
 	})
 
 	return r

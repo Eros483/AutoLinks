@@ -10,12 +10,19 @@ export function buildApiUrl(path, env = import.meta.env) {
   return `${getApiBaseUrl(env)}${normalizedPath}`
 }
 
-export async function fetchRecommendations(text, alpha = 0.7, minSimilarity = 0.65) {
+function authHeaders(token) {
+  if (!token) return { 'Content-Type': 'application/json' }
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+  }
+}
+
+export async function fetchRecommendations(text, alpha = 0.7, minSimilarity = 0.65, getToken) {
+  const token = getToken ? await getToken() : null
   const response = await fetch(buildApiUrl('/recommend'), {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: authHeaders(token),
     body: JSON.stringify({
       text,
       alpha,
@@ -35,8 +42,11 @@ export async function fetchRecommendations(text, alpha = 0.7, minSimilarity = 0.
   }
 }
 
-export async function fetchSitemapStatus() {
-  const response = await fetch(buildApiUrl('/link-graph'))
+export async function fetchSitemapStatus(getToken) {
+  const token = getToken ? await getToken() : null
+  const response = await fetch(buildApiUrl('/link-graph'), {
+    headers: authHeaders(token),
+  })
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
@@ -51,12 +61,11 @@ export async function fetchSitemapStatus() {
   }
 }
 
-export async function ingestSitemap(sitemapUrl, maxConcurrent = 5) {
+export async function ingestSitemap(sitemapUrl, maxConcurrent = 5, getToken) {
+  const token = getToken ? await getToken() : null
   const response = await fetch(buildApiUrl('/ingest/sitemap'), {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: authHeaders(token),
     body: JSON.stringify({
       sitemap_url: sitemapUrl,
       max_concurrent: maxConcurrent,

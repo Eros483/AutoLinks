@@ -13,7 +13,7 @@ import (
 )
 
 func setupRouter() http.Handler {
-	return NewRouter()
+	return NewRouter(nil)
 }
 
 func TestHandleHealth(t *testing.T) {

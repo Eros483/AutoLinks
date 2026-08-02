@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useAuth } from '@clerk/clerk-react'
 import { useStore } from '../store/store'
 import { fetchRecommendations } from '../services/api'
 import { buildHighlightedHtml, encodePhraseKey } from '../utils/editor_highlight'
@@ -7,6 +8,7 @@ function Editor() {
   const [showHighlight, setShowHighlight] = useState(false)
   const textareaRef = useRef(null)
   const highlightRef = useRef(null)
+  const { getToken } = useAuth()
   const {
     draftText,
     setDraftText,
@@ -23,7 +25,7 @@ function Editor() {
     setLoading(true)
     setError(null)
     try {
-      const result = await fetchRecommendations(draftText)
+      const result = await fetchRecommendations(draftText, 0.7, 0.65, getToken)
       setRecommendations(result.recommendations, result.latency)
       setShowHighlight(true)
     } catch (err) {

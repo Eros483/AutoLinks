@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { SignedIn, SignedOut, SignIn } from '@clerk/clerk-react'
 import { Analytics } from '@vercel/analytics/react'
 import Header from './components/Header'
 import LandingPage from './components/LandingPage'
@@ -24,7 +25,18 @@ function App() {
     <div id="al">
       <div className="al-app">
         <Header currentView={currentView} onNavigate={setCurrentView} />
-        {renderCurrentView()}
+        {currentView === 'home' ? (
+          <LandingPage onNavigate={setCurrentView} />
+        ) : (
+          <>
+            <SignedOut>
+              <SignIn routing="virtual" />
+            </SignedOut>
+            <SignedIn>
+              {renderCurrentView()}
+            </SignedIn>
+          </>
+        )}
       </div>
       <Analytics />
     </div>

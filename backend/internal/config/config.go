@@ -75,5 +75,6 @@ var (
 	EmbeddingModel   = func() string { return Get("EMBEDDING_MODEL", "all-MiniLM-L6-v2") }
 	RerankAlpha      = func() float64 { return GetFloat("RERANK_ALPHA", 0.7) }
 	RedisURL         = func() string { return Get("REDIS_URL", "") }
+	ClerkSecretKey   = func() string { return Get("CLERK_SECRET_KEY", "") }
 	Port             = func() string { return Get("PORT", "8000") }
 )
