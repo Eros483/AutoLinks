@@ -76,5 +76,6 @@ var (
 	RerankAlpha      = func() float64 { return GetFloat("RERANK_ALPHA", 0.7) }
 	RedisURL         = func() string { return Get("REDIS_URL", "") }
 	ClerkSecretKey   = func() string { return Get("CLERK_SECRET_KEY", "") }
+	FrontendURL      = func() string { return Get("FRONTEND_URL", "http://localhost:3000,https://autolinks-seo.vercel.app") }
 	Port             = func() string { return Get("PORT", "8000") }
 )

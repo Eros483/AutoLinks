@@ -124,9 +124,9 @@ func TestHandleRecommendDryRun(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
 
 	var resp map[string]interface{}
 	json.NewDecoder(w.Body).Decode(&resp)
-	assert.Equal(t, "success", resp["status"])
+	assert.Equal(t, "Embedding service unavailable", resp["detail"])
 }

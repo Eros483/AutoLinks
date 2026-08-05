@@ -3,6 +3,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"math"
 	"net/http"
 	"sort"
@@ -44,11 +45,11 @@ func NewRouter(tokenVerifier auth.TokenVerifier) chi.Router {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"},
+		AllowedOrigins:   strings.Split(config.FrontendURL(), ","),
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},
-		AllowCredentials: true,
+		AllowCredentials: false,
 		MaxAge:           300,
 	}))
 
@@ -103,7 +104,18 @@ func handleRecommend(w http.ResponseWriter, r *http.Request) {
 
 	startTime := time.Now()
 
-	entities := extract.PostProcessEntities(extract.ExtractEntities(req.Text), defaultMinCharLength)
+	rawEntities, err := extract.ExtractEntities(req.Text)
+	if err != nil {
+		if errors.Is(err, extract.ErrNoEntities) {
+			writeError(w, http.StatusBadRequest, "No high-quality entities found in text")
+			return
+		}
+		logger.Error("Entity extraction failed: %s", err)
+		writeError(w, http.StatusInternalServerError, "Entity extraction failed")
+		return
+	}
+
+	entities := extract.PostProcessEntities(rawEntities, defaultMinCharLength)
 	if len(entities) == 0 {
 		writeError(w, http.StatusBadRequest, "No high-quality entities found in text")
 		return
@@ -133,13 +145,7 @@ func handleRecommend(w http.ResponseWriter, r *http.Request) {
 	allEmbeddings, err := embed.EmbedBatch(queries)
 	if err != nil {
 		logger.Error("Batch embed failed: %s", err)
-		recommendations := []models.Recommendation{}
-		latencyMs := time.Since(startTime).Milliseconds()
-		writeJSON(w, http.StatusOK, models.RecommendResponse{
-			Status:          "success",
-			LatencyMs:       latencyMs,
-			Recommendations: recommendations,
-		})
+		writeError(w, http.StatusInternalServerError, "Embedding service unavailable")
 		return
 	}
 
@@ -247,7 +253,7 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 
 	if err := ingest.IngestArticle(req.URL, req.Content); err != nil {
 		logger.Error("Ingest error: %s", err)
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, http.StatusInternalServerError, "Ingest failed")
 		return
 	}
 
@@ -285,7 +291,7 @@ func handleIngestSitemap(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		logger.Error("Failed to create job: %s", err)
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, http.StatusInternalServerError, "Failed to create ingestion job")
 		return
 	}
 
@@ -407,8 +413,4 @@ func handleLinkGraph(w http.ResponseWriter, r *http.Request) {
 		URLCount:  len(graph),
 		LinkGraph: graph,
 	})
-}
-
-func init() {
-	_ = strings.TrimSpace
 }

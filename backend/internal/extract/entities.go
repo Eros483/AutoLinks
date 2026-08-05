@@ -3,6 +3,7 @@ package extract
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,6 +14,9 @@ import (
 	"github.com/anomalyco/autolinks/internal/config"
 	"github.com/anomalyco/autolinks/internal/logger"
 )
+
+// ErrNoEntities is returned when entity extraction succeeds but finds no entities.
+var ErrNoEntities = errors.New("no entities extracted")
 
 // Entity represents a named entity extracted from text with its position and label.
 type Entity struct {
@@ -32,44 +36,48 @@ var DefaultEntityLabels = []string{
 }
 
 // ExtractEntities sends text to the HF Space and returns named entities with position offsets.
-// It returns nil if the models space URL is unset or dry_run mode is enabled.
-func ExtractEntities(text string) []Entity {
+// It returns ErrNoEntities if extraction succeeds but no entities were found.
+func ExtractEntities(text string) ([]Entity, error) {
 	if config.DryRun() {
 		logger.Info("DRY_RUN enabled, returning fixture entities")
-		return getFixtureEntities(text)
+		entities := getFixtureEntities(text)
+		if len(entities) == 0 {
+			return nil, ErrNoEntities
+		}
+		return entities, nil
 	}
 
 	if config.ModelsSpaceURL() == "" {
 		logger.Warning("models_space_url not configured, returning empty")
-		return nil
+		return nil, ErrNoEntities
 	}
 
 	labelsJSON, err := json.Marshal(DefaultEntityLabels)
 	if err != nil {
-		logger.Error("failed to marshal entity labels: %s", err)
-		return nil
+		return nil, fmt.Errorf("failed to marshal entity labels: %w", err)
 	}
 
 	result, err := CallSpace("extract_entities", text, string(labelsJSON))
 	if err != nil {
-		logger.Error("extract_entities failed: %s", err)
-		return nil
+		return nil, fmt.Errorf("extract_entities failed: %w", err)
 	}
 
 	var rawJSON string
 	if err := json.Unmarshal([]byte(result), &rawJSON); err != nil {
-		logger.Error("failed to unmarshal entity wrapper: %s", err)
-		return nil
+		return nil, fmt.Errorf("failed to unmarshal entity wrapper: %w", err)
 	}
 
 	var entities []Entity
 	if err := json.Unmarshal([]byte(rawJSON), &entities); err != nil {
-		logger.Error("failed to unmarshal entities: %s", err)
-		return nil
+		return nil, fmt.Errorf("failed to unmarshal entities: %w", err)
+	}
+
+	if len(entities) == 0 {
+		return nil, ErrNoEntities
 	}
 
 	logger.Info("Extracted %d entities from text", len(entities))
-	return entities
+	return entities, nil
 }
 
 // PostProcessEntities filters noisy entities and removes duplicates.

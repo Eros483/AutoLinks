@@ -111,7 +111,8 @@ func TestExtractEntitiesDryRun(t *testing.T) {
 	os.Setenv("DRY_RUN", "true")
 	defer func() { os.Setenv("DRY_RUN", original) }()
 
-	result := ExtractEntities("CUDA optimization in gradient descent")
+	result, err := ExtractEntities("CUDA optimization in gradient descent")
+	assert.NoError(t, err)
 	assert.NotEmpty(t, result)
 }
 
@@ -124,6 +125,6 @@ func TestExtractEntitiesNoModelsURL(t *testing.T) {
 		os.Setenv("DRY_RUN", "false")
 	}()
 
-	result := ExtractEntities("test")
-	assert.Empty(t, result)
+	_, err := ExtractEntities("test")
+	assert.ErrorIs(t, err, ErrNoEntities)
 }

@@ -3,9 +3,9 @@ package jobs
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/anomalyco/autolinks/internal/config"
@@ -19,24 +19,26 @@ const (
 	jobTTL       = 86400 * 7 // 7 days
 )
 
-var rdb *redis.Client
+var (
+	rdb     *redis.Client
+	rdbOnce sync.Once
+	rdbErr  error
+)
 
 func getRedis() *redis.Client {
-	if rdb == nil {
+	rdbOnce.Do(func() {
 		redisURL := config.RedisURL()
 		if redisURL == "" {
-			return nil
+			return
 		}
 		opts, err := redis.ParseURL(redisURL)
 		if err != nil {
 			logger.Error("Failed to parse Redis URL: %s", err)
-			return nil
-		}
-		if redisURL[:8] == "rediss://" {
-			opts.TLSConfig = &tls.Config{InsecureSkipVerify: true}
+			rdbErr = err
+			return
 		}
 		rdb = redis.NewClient(opts)
-	}
+	})
 	return rdb
 }
 

@@ -2,7 +2,7 @@ import { useStore } from '../store/store'
 import Card from './Card'
 
 function Recommendations() {
-  const { recommendations, loading, latency } = useStore()
+  const { recommendations, loading, latency, error } = useStore()
 
   return (
     <div className="al-rp">
@@ -13,21 +13,27 @@ function Recommendations() {
         )}
       </div>
 
+      {error && (
+        <div className="al-rp-error">{error}</div>
+      )}
+
       {loading ? (
         <div className="al-rp-loading">
           <span className="al-spinner" />
           Analyzing draft...
         </div>
-      ) : recommendations.length === 0 ? (
+      ) : !error && recommendations.length === 0 ? (
         <div className="al-rp-empty">
           Enter text in the editor and click Analyze to get link recommendations
         </div>
       ) : (
-        <div className="al-rp-list">
-          {recommendations.map((rec, index) => (
-            <Card key={index} recommendation={rec} index={index} />
-          ))}
-        </div>
+        !error && (
+          <div className="al-rp-list">
+            {recommendations.map((rec, index) => (
+              <Card key={index} recommendation={rec} index={index} />
+            ))}
+          </div>
+        )
       )}
     </div>
   )

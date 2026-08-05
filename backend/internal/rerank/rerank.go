@@ -3,7 +3,6 @@ package rerank
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"math"
 	"sort"
@@ -18,8 +17,11 @@ import (
 const LinkGraphKey = "autolinks:link_graph"
 
 var (
-	linkGraph   map[string]int
-	linkGraphMu sync.RWMutex
+	linkGraph     map[string]int
+	linkGraphMu   sync.RWMutex
+	rerankRdb     *redis.Client
+	rerankRdbErr  error
+	rerankRdbOnce sync.Once
 )
 
 func init() {
@@ -84,15 +86,20 @@ func saveLinkGraph(graph map[string]int) {
 }
 
 func getRedisClient() *redis.Client {
-	redisURL := config.RedisURL()
-	opts, err := redis.ParseURL(redisURL)
-	if err != nil {
-		opts = &redis.Options{Addr: "localhost:6379"}
-	}
-	if redisURL != "" && redisURL[:8] == "rediss://" {
-		opts.TLSConfig = &tls.Config{InsecureSkipVerify: true}
-	}
-	return redis.NewClient(opts)
+	rerankRdbOnce.Do(func() {
+		redisURL := config.RedisURL()
+		if redisURL == "" {
+			return
+		}
+		opts, err := redis.ParseURL(redisURL)
+		if err != nil {
+			logger.Error("Failed to parse Redis URL: %s", err)
+			rerankRdbErr = err
+			return
+		}
+		rerankRdb = redis.NewClient(opts)
+	})
+	return rerankRdb
 }
 
 // EquityNeed calculates equity need score for a URL (higher = more need).
