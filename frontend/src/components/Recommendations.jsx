@@ -30,7 +30,7 @@ function Recommendations() {
         !error && (
           <div className="al-rp-list">
             {recommendations.map((rec, index) => (
-              <Card key={index} recommendation={rec} index={index} />
+              <Card key={rec.suggested_url} recommendation={rec} index={index} />
             ))}
           </div>
         )

@@ -18,8 +18,17 @@ function authHeaders(token) {
   }
 }
 
+async function resolveToken(getToken) {
+  return getToken ? await getToken() : null
+}
+
+async function handleApiError(response) {
+  const errorData = await response.json().catch(() => ({}))
+  throw new Error(errorData.detail || `HTTP error ${response.status}`)
+}
+
 export async function fetchRecommendations(text, alpha = 0.7, minSimilarity = 0.65, getToken) {
-  const token = getToken ? await getToken() : null
+  const token = await resolveToken(getToken)
   const response = await fetch(buildApiUrl('/recommend'), {
     method: 'POST',
     headers: authHeaders(token),
@@ -30,10 +39,7 @@ export async function fetchRecommendations(text, alpha = 0.7, minSimilarity = 0.
     }),
   })
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}))
-    throw new Error(errorData.detail || `HTTP error ${response.status}`)
-  }
+  if (!response.ok) await handleApiError(response)
 
   const data = await response.json()
   return {
@@ -43,15 +49,12 @@ export async function fetchRecommendations(text, alpha = 0.7, minSimilarity = 0.
 }
 
 export async function fetchSitemapStatus(getToken) {
-  const token = getToken ? await getToken() : null
+  const token = await resolveToken(getToken)
   const response = await fetch(buildApiUrl('/link-graph'), {
     headers: authHeaders(token),
   })
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}))
-    throw new Error(errorData.detail || `HTTP error ${response.status}`)
-  }
+  if (!response.ok) await handleApiError(response)
 
   const data = await response.json()
 
@@ -62,7 +65,7 @@ export async function fetchSitemapStatus(getToken) {
 }
 
 export async function ingestSitemap(sitemapUrl, maxConcurrent = 5, getToken) {
-  const token = getToken ? await getToken() : null
+  const token = await resolveToken(getToken)
   const response = await fetch(buildApiUrl('/ingest/sitemap'), {
     method: 'POST',
     headers: authHeaders(token),
@@ -72,10 +75,7 @@ export async function ingestSitemap(sitemapUrl, maxConcurrent = 5, getToken) {
     }),
   })
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}))
-    throw new Error(errorData.detail || `HTTP error ${response.status}`)
-  }
+  if (!response.ok) await handleApiError(response)
 
   const data = await response.json()
 

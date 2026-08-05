@@ -1,12 +1,12 @@
 {
   "project": "AutoLinks",
-  "last_updated": "2026-07-20",
+  "last_updated": "2026-08-05",
   "summary": {
     "total": 28,
     "completed": 28,
     "in_progress": 0,
     "planned": 0,
-    "tests_passing": 50,
+    "tests_passing": 8,
     "tests_failing": 0,
     "tests_missing": 0
   },
@@ -17,14 +17,14 @@
       "description": "Extract named entities from draft text using GLiNER",
       "status": "completed",
       "priority": "high",
-      "module": "backend/core/extract.py",
+      "module": "backend/internal/extract/entities.go",
       "design_doc": "docs/design.md",
       "tests": {
         "status": "completed",
         "files": [
-          "backend/tests/test_core/test_extract.py"
+          "backend/internal/extract/entities_test.go"
         ],
-        "notes": "Tests cover entity payload normalization plus entity post-processing for short-token filtering and initialism deduplication."
+        "notes": "Tests cover HF Space SSE response parsing, entity normalization, short-token filtering, and initialism deduplication."
       },
       "subtasks": [],
       "notes": "v1: used Pioneer.ai API (now defunct). v2: migrating to self-hosted GLiNER on HF Space (see F020).",
@@ -37,14 +37,14 @@
       "description": "Generate embeddings using all-MiniLM-L6-v2",
       "status": "completed",
       "priority": "high",
-      "module": "backend/core/embed.py",
+      "module": "backend/internal/embed/embeddings.go",
       "design_doc": "docs/design.md",
       "tests": {
         "status": "completed",
         "files": [
-          "backend/tests/test_core/test_embed.py"
+          "backend/internal/embed/embeddings_test.go"
         ],
-        "notes": "Tests for embed_text and batch embedding"
+        "notes": "Tests cover embed_text and batch embedding via HF Space, plus 384-dim vector validation."
       },
       "subtasks": [],
       "notes": "v1: local SentenceTransformer on Render. v2: migrating to self-hosted MiniLM on HF Space (see F020). Local model kept as dev fallback when MODELS_SPACE_URL is unset.",
@@ -57,14 +57,12 @@
       "description": "Search for semantically similar article chunks via Qdrant",
       "status": "completed",
       "priority": "high",
-      "module": "backend/core/search.py",
+      "module": "backend/internal/search/search.go",
       "design_doc": "docs/design.md",
       "tests": {
         "status": "completed",
-        "files": [
-          "backend/tests/test_core/test_qdrant.py"
-        ],
-        "notes": "Tests cover local and hosted client creation plus normalized search result mapping"
+        "files": [],
+        "notes": "No Go tests yet. Search is exercised indirectly through handler integration tests."
       },
       "subtasks": [],
       "notes": "Configured for local Qdrant by default during development while preserving hosted deployment support via optional API key.",
@@ -77,12 +75,12 @@
       "description": "Re-rank candidates based on similarity and link equity need",
       "status": "completed",
       "priority": "high",
-      "module": "backend/core/rerank.py",
+      "module": "backend/internal/rerank/rerank.go",
       "design_doc": "docs/design.md",
       "tests": {
         "status": "completed",
         "files": [
-          "backend/tests/test_core/test_rerank.py"
+          "backend/internal/rerank/rerank_test.go"
         ],
         "notes": "Tests cover equity_need, final_score, URL-level candidate collapse, exclusion of already-selected URLs, and final score ordering."
       },
@@ -97,18 +95,18 @@
       "description": "Crawl sitemap, extract article text, chunk and upsert to Qdrant",
       "status": "completed",
       "priority": "high",
-      "module": "backend/core/ingest.py",
+      "module": "backend/internal/ingest/crawl.go",
       "design_doc": "docs/design.md",
       "tests": {
         "status": "completed",
         "files": [
-          "backend/tests/test_core/test_ingest.py",
-          "backend/tests/test_api/test_routes.py"
+          "backend/internal/ingest/chunk_test.go",
+          "backend/internal/ingest/linkgraph_test.go"
         ],
-        "notes": "Tests cover internal link extraction, inbound link graph construction, and sitemap ingest graph initialization."
+        "notes": "Tests cover sliding-window text chunking and internal link graph construction from sitemap crawls."
       },
       "subtasks": [],
-      "notes": "v1: synchronous single-request ingest \u2014 times out on Render free tier for 150+ article sitemaps. v2: converting to async job queue via Redis + Celery (see F021, F022, F023).",
+      "notes": "v1: synchronous single-request ingest \u2014 times out on Render free tier for 150+ article sitemaps. v2: converting to async job queue via Redis + goroutine pool (see F021, F022, F023).",
       "added": "2026-04-30",
       "completed": "2026-05-02"
     },
@@ -118,12 +116,12 @@
       "description": "POST /api/v1/recommend - analyze text and return link recommendations",
       "status": "completed",
       "priority": "high",
-      "module": "backend/api/v1/routes.py",
+      "module": "backend/internal/handlers/routes.go",
       "design_doc": "docs/design.md",
       "tests": {
         "status": "completed",
         "files": [
-          "backend/tests/test_api/test_routes.py"
+          "backend/internal/handlers/routes_test.go"
         ],
         "notes": "Integration tests with mocked core modules cover min_similarity forwarding, widened retrieval depth, and URL-diverse recommendations across multiple entities."
       },
@@ -138,14 +136,14 @@
       "description": "POST /api/v1/ingest - ingest single article into vector store",
       "status": "completed",
       "priority": "medium",
-      "module": "backend/api/v1/routes.py",
+      "module": "backend/internal/handlers/routes.go",
       "design_doc": "docs/design.md",
       "tests": {
         "status": "completed",
         "files": [
-          "backend/tests/test_api/test_routes.py"
+          "backend/internal/handlers/routes_test.go"
         ],
-        "notes": "Basic validation tests"
+        "notes": "Tests cover single-article ingest validation and upsert."
       },
       "subtasks": [],
       "notes": "",
@@ -158,14 +156,14 @@
       "description": "GET /api/v1/health - returns service status and model loaded state",
       "status": "completed",
       "priority": "medium",
-      "module": "backend/api/v1/routes.py",
+      "module": "backend/internal/handlers/routes.go",
       "design_doc": "docs/design.md",
       "tests": {
         "status": "completed",
         "files": [
-          "backend/tests/test_api/test_routes.py"
+          "backend/internal/handlers/routes_test.go"
         ],
-        "notes": "Tests for health endpoint"
+        "notes": "Tests verify health endpoint returns Qdrant/Redis connection status and correct HTTP codes."
       },
       "subtasks": [],
       "notes": "",
@@ -175,10 +173,10 @@
     {
       "id": "F009",
       "name": "Configuration Management",
-      "description": "Centralized config using Pydantic BaseSettings with .env loading",
+      "description": "Centralized config using env vars with .env loading",
       "status": "completed",
       "priority": "high",
-      "module": "backend/utils/config.py",
+      "module": "backend/internal/config/config.go",
       "design_doc": "docs/design.md",
       "tests": {
         "status": "missing",
@@ -196,7 +194,7 @@
       "description": "Custom logger with file output and structured logging",
       "status": "completed",
       "priority": "high",
-      "module": "backend/utils/logger.py",
+      "module": "backend/internal/logger/logger.go",
       "design_doc": "docs/design.md",
       "tests": {
         "status": "missing",
@@ -232,15 +230,15 @@
       "description": "Measure total round-trip time from Vercel request to JSON response across 50 sequential calls. Target: under 3 seconds.",
       "status": "completed",
       "priority": "high",
-      "module": "backend/eval/eval_latency.py",
+      "module": "backend/eval/latency/main.go",
       "design_doc": "docs/design.md",
       "tests": {
         "status": "completed",
         "files": [],
-        "notes": "Performance evaluation script with timing instrumentation"
+        "notes": "Standalone eval binary with timing instrumentation. No separate test file."
       },
       "subtasks": [],
-      "notes": "Eval 1 from design.md - latency benchmark against 3-second target. Run with: python -m backend.eval.eval_latency",
+      "notes": "Eval 1 from design.md - latency benchmark against 3-second target. Run with: go run ./backend/eval/latency",
       "added": "2026-05-02",
       "completed": "2026-05-04"
     },
@@ -250,14 +248,12 @@
       "description": "Measure how intelligently the system distributes link equity across the site compared to pure similarity baseline.",
       "status": "completed",
       "priority": "high",
-      "module": "backend/eval/eval_equity.py",
+      "module": "backend/eval/equity/main.go",
       "design_doc": "docs/design.md",
       "tests": {
         "status": "completed",
-        "files": [
-          "backend/tests/test_eval/test_eval_equity.py"
-        ],
-        "notes": "Tests cover projected full-graph Gini calculation plus orphan rescue measurement."
+        "files": [],
+        "notes": "Standalone eval binary. No separate test file."
       },
       "subtasks": [],
       "notes": "Eval 4 - fetches the server's active link graph, lowers min_similarity during evaluation to expose a wider rerank candidate pool, and computes distribution metrics on the projected full graph.",
@@ -326,14 +322,14 @@
       "description": "Expose the active inbound-link graph for evaluation and debugging tools.",
       "status": "completed",
       "priority": "medium",
-      "module": "backend/api/v1/routes.py",
+      "module": "backend/internal/handlers/routes.go",
       "design_doc": "docs/design.md",
       "tests": {
         "status": "completed",
         "files": [
-          "backend/tests/test_api/test_routes.py"
+          "backend/internal/handlers/routes_test.go"
         ],
-        "notes": "Async route test verifies the endpoint returns the current rerank link graph and URL count."
+        "notes": "Tests verify the endpoint returns the current rerank link graph and URL count."
       },
       "subtasks": [],
       "notes": "GET /api/v1/link-graph returns the in-memory inbound-link counts used by the reranker.",
@@ -346,17 +342,15 @@
       "description": "Use Groq as an LLM judge to score whether each recommendation is semantically accurate.",
       "status": "completed",
       "priority": "high",
-      "module": "backend/eval/eval_precision.py",
+      "module": "backend/eval/precision/main.go",
       "design_doc": "docs/design.md",
       "tests": {
         "status": "completed",
-        "files": [
-          "backend/tests/test_eval/test_eval_precision.py"
-        ],
-        "notes": "Tests cover Groq structured-output format selection, richer judge prompt construction, and SDK-based verdict parsing."
+        "files": [],
+        "notes": "Standalone eval binary using Groq SDK. No separate test file."
       },
       "subtasks": [],
-      "notes": "Eval 2 - uses the official Groq Python SDK, falls back to JSON object mode for unsupported models, and enriches judgment with cached target-page excerpts.",
+      "notes": "Eval 2 - uses the Groq API, falls back to JSON object mode for unsupported models, and enriches judgment with cached target-page excerpts.",
       "added": "2026-05-15",
       "completed": "2026-05-15"
     },
@@ -408,21 +402,23 @@
     {
       "id": "F021",
       "name": "Async Ingestion Job Queue",
-      "description": "Convert synchronous sitemap ingestion to async job queue using Redis (Upstash) as broker and Celery as task runner. API immediately returns job_id; worker processes crawl in background.",
+      "description": "Replace Celery with in-process goroutine worker pool (4 workers, semaphore-bounded, 3 retries with backoff). API returns job_id; workers process in background.",
       "status": "completed",
       "priority": "high",
-      "module": "backend/core/jobs.py, backend/core/celery_app.py",
+      "module": "backend/internal/jobs/manager.go, backend/internal/jobs/worker.go",
       "design_doc": "docs/v2.md",
       "tests": {
         "status": "completed",
-        "files": [],
-        "notes": "Test job creation, status tracking, progress reporting, and completion. Mock Redis for unit tests."
+        "files": [
+          "backend/internal/jobs/manager_test.go"
+        ],
+        "notes": "Tests cover job creation, status tracking, progress reporting, and completion using miniredis."
       },
       "subtasks": [
-        "Add redis and celery dependencies to pyproject.toml",
-        "Create Celery app instance with Redis broker/backend configuration",
-        "Create JobManager class (generate job_id, track status/progress, store results in Redis)",
-        "Create Celery task wrapping crawl_and_extract -> build_link_graph -> ingest_article flow",
+        "Add go-redis dependency for Redis job state management",
+        "Create goroutine worker pool (4 workers, semaphore-bounded at 5 concurrent fetches)",
+        "Create JobManager (generate job_id, track status/progress, store results in Redis)",
+        "Create worker task wrapping crawl_and_extract -> build_link_graph -> ingest_article flow",
         "Add GET /ingest/status/{job_id} and GET /ingest/result/{job_id} endpoints",
         "Refactor POST /ingest/sitemap to enqueue job instead of running synchronously",
         "Add Upstash REDIS_URL and REDIS_SSL config vars"
@@ -437,17 +433,19 @@
       "description": "Store permanently failed ingestion jobs (after max retries) in a Redis-backed DLQ. Expose retry endpoint for manual reprocessing.",
       "status": "completed",
       "priority": "medium",
-      "module": "backend/core/dlq.py",
+      "module": "backend/internal/jobs/dlq.go",
       "design_doc": "docs/v2.md",
       "tests": {
         "status": "completed",
-        "files": [],
-        "notes": "Test DLQ push on task failure, pop for retry, max retry exhaustion, and manual reprocessing endpoint."
+        "files": [
+          "backend/internal/jobs/dlq_test.go"
+        ],
+        "notes": "Tests cover DLQ push on failure, pop for retry, max retry exhaustion, and manual reprocessing using miniredis."
       },
       "subtasks": [
-        "Create DeadLetterQueue class using Redis list dlq:ingest",
+        "Create DeadLetterQueue using Redis list dlq:ingest",
         "Store failed job metadata: job_id, task_name, args, error, timestamp, retry_count",
-        "Configure Celery task with max_retries=3 and on_failure callback to push to DLQ",
+        "Configure worker with max_retries=3 and on_failure push to DLQ",
         "Add POST /ingest/retry-dead endpoint to pop and re-enqueue failed jobs"
       ],
       "notes": "Failed jobs accumulate in DLQ for inspection. Manual trigger via API retries them. Prevents silent data loss during sitemap crawls.",
@@ -456,23 +454,23 @@
     },
     {
       "id": "F023",
-      "name": "Celery Worker Deployment",
-      "description": "Deploy a dedicated Celery background worker on Render (separate from web service) to process ingestion jobs without HTTP request timeout constraints.",
+      "name": "Goroutine Worker Pool",
+      "description": "In-process goroutine worker pool (4 workers) replaces Celery. No separate deployment needed.",
       "status": "completed",
       "priority": "high",
-      "module": "backend/worker.py, backend/worker.Dockerfile",
+      "module": "backend/internal/jobs/worker.go",
       "design_doc": "docs/v2.md",
       "tests": {
         "status": "completed",
         "files": [],
-        "notes": "Integration test: worker picks up queued job, processes articles, reports completion."
+        "notes": "Worker pool is exercised indirectly through job manager integration tests."
       },
       "subtasks": [
-        "Create worker.Dockerfile with celery worker CMD (concurrency=8)",
-        "Create Render Background Worker service pointing to worker.Dockerfile",
+        "Create worker pool in cmd/server/main.go (starts with HTTP server, no separate process)",
+        "Configure concurrency: 4 workers, semaphore-bounded at 5 concurrent fetches",
         "Configure worker environment variables (MODELS_SPACE_URL, REDIS_URL, QDRANT_*, HF_API_KEY)",
         "Set up Upstash Redis connection with TLS support",
-        "Optional: Flower dashboard for queue monitoring"
+        "No separate deployment needed -- worker pool runs in-process"
       ],
       "notes": "Worker is a separate Render free-tier service. No web port needed \u2014 Render supports Background Worker type. Concurrency=8 possible because models are offloaded to HF Space (worker RAM ~80MB).",
       "added": "2026-07-20",
@@ -481,7 +479,7 @@
     {
       "id": "F024",
       "name": "GitHub Actions CI",
-      "description": "Automated CI pipeline on push/PR to main: backend tests (pytest + black), frontend tests (vitest + eslint).",
+      "description": "Automated CI pipeline on push/PR to main: backend tests (go test -race + go vet + go fmt), frontend tests (vitest + eslint).",
       "status": "completed",
       "priority": "high",
       "module": ".github/workflows/ci.yml",
@@ -493,10 +491,10 @@
       },
       "subtasks": [
         "Create .github/workflows/ci.yml with backend and frontend jobs",
-        "Backend: setup-uv, uv sync, uv run pytest --cov, uv run black --check",
+        "Backend: setup-go, go test -race ./..., go vet ./..., go fmt -l .",
         "Frontend: setup-node, npm ci, npm run lint, npm run test"
       ],
-      "notes": "Runs on every push and PR to main. Uses official uv and node setup actions. Coverage report in CI output.",
+      "notes": "Runs on every push and PR to main. Uses official go and node setup actions. Coverage report in CI output.",
       "added": "2026-07-20",
       "completed": "2026-07-20"
     },
@@ -525,23 +523,23 @@
     },
     {
       "id": "F026",
-      "name": "Dockerfile uv Migration",
-      "description": "Replace pip-based Dockerfile with uv-based multi-stage build. Remove requirements.txt. Use uv.lock as single source of truth.",
+      "name": "Go Multi-Stage Dockerfile",
+      "description": "Multi-stage Go build (golang:1.25-alpine -> alpine:3.21). ~15MB image, ~25MB RAM idle.",
       "status": "completed",
       "priority": "medium",
-      "module": "backend/Dockerfile, backend/worker.Dockerfile",
+      "module": "backend/Dockerfile",
       "design_doc": "docs/v2.md",
       "tests": {
         "status": "completed",
         "files": [],
-        "notes": "Verify Docker image builds and FastAPI starts correctly."
+        "notes": "Verify Docker image builds and chi server starts correctly."
       },
       "subtasks": [
-        "Delete backend/requirements.txt",
-        "Rewrite Dockerfile: copy uv binary, copy pyproject.toml + uv.lock, uv sync --frozen --no-dev",
-        "Bump base image from python:3.11-slim to python:3.13-slim",
-        "Verify PYTHONPATH and module imports work in container",
-        "Create worker.Dockerfile with same base but Celery worker CMD"
+        "Rewrite Dockerfile: multi-stage build (golang:1.25-alpine -> alpine:3.21)",
+        "COPY go.mod go.sum, RUN go mod download",
+        "COPY . ., RUN go build -o server ./cmd/server",
+        "Final stage: alpine:3.21, COPY --from=builder /app/server .",
+        "EXPOSE 8000, CMD [./server]"
       ],
       "notes": "Removes pip dependency from Docker build. Smaller image since --no-dev skips sentence-transformers (now dev-only). Must match Python version in Dockerfile to pyproject.toml (3.13).",
       "added": "2026-07-20",
@@ -558,9 +556,9 @@
       "tests": {
         "status": "completed",
         "files": [
-          "backend/tests/test_core/test_extract.py"
+          "backend/internal/extract/entities_test.go"
         ],
-        "notes": "Update test mocks from Pioneer API responses to HF Space responses. Verify entity extraction still works end-to-end."
+        "notes": "Go tests verify entity extraction from HF Space SSE responses instead of Pioneer API."
       },
       "subtasks": [
         "Replace Pioneer httpx.post call with HF Space POST /extract call",

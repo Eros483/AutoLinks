@@ -16,12 +16,6 @@ Versioned API prefix:
 /api/v1
 ```
 
-Swagger UI is available at:
-
-```text
-http://127.0.0.1:8000/docs
-```
-
 ---
 
 ## Start The API
@@ -52,7 +46,7 @@ Successful recommendation responses return:
 - `latency_ms`
 - `recommendations`
 
-Validation errors usually return HTTP `422`.
+Validation errors usually return HTTP `400`.
 
 Application errors usually return HTTP `500` with a `detail` field.
 
@@ -195,8 +189,9 @@ curl -X POST "http://127.0.0.1:8000/api/v1/ingest/sitemap" \
 
 ```json
 {
-  "status": "success",
-  "chunks_ingested": 150
+  "job_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "queued",
+  "estimated_articles": 150
 }
 ```
 
@@ -205,6 +200,106 @@ curl -X POST "http://127.0.0.1:8000/api/v1/ingest/sitemap" \
 - The crawler extracts clean text with `trafilatura`.
 - The same crawl also extracts internal `<a href>` links from page HTML.
 - Those links are inverted into inbound link counts and used by the equity-aware reranker.
+
+---
+
+## `GET /api/v1/ingest/status/{jobID}`
+
+Check the status of an async sitemap ingestion job.
+
+### Example cURL
+
+```bash
+curl "http://127.0.0.1:8000/api/v1/ingest/status/550e8400-e29b-41d4-a716-446655440000"
+```
+
+### Example Response
+
+```json
+{
+  "status": "processing",
+  "progress_pct": 45.0,
+  "articles_done": 67,
+  "total": 150,
+  "errors": []
+}
+```
+
+---
+
+## `GET /api/v1/ingest/result/{jobID}`
+
+Retrieve the final result of a completed sitemap ingestion job.
+
+### Example cURL
+
+```bash
+curl "http://127.0.0.1:8000/api/v1/ingest/result/550e8400-e29b-41d4-a716-446655440000"
+```
+
+### Example Response
+
+```json
+{
+  "status": "done",
+  "chunks_ingested": 150,
+  "duration_seconds": 82.0,
+  "errors": []
+}
+```
+
+---
+
+## `POST /api/v1/ingest/retry-dead`
+
+Re-enqueue permanently failed ingestion jobs from the dead letter queue.
+
+### Example cURL
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/v1/ingest/retry-dead"
+```
+
+### Example Response
+
+```json
+{
+  "retried_count": 3,
+  "job_ids": ["abc-123", "def-456", "ghi-789"]
+}
+```
+
+---
+
+## `GET /api/v1/link-graph`
+
+Returns the current inbound link graph used by the equity-aware reranker.
+
+### Example cURL
+
+```bash
+curl "http://127.0.0.1:8000/api/v1/link-graph"
+```
+
+### Example Response
+
+```json
+{
+  "status": "success",
+  "url_count": 150,
+  "link_graph": {
+    "https://example.com/page1": 5,
+    "https://example.com/page2": 0,
+    "https://example.com/page3": 12
+  }
+}
+```
+
+---
+
+## Authentication
+
+All endpoints except `/api/v1/health` require a Clerk JWT `Bearer` token in the `Authorization` header when `CLERK_SECRET_KEY` is configured.
 
 ---
 

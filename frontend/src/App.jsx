@@ -9,18 +9,6 @@ import SitemapPage from './components/SitemapPage'
 function App() {
   const [currentView, setCurrentView] = useState('home')
 
-  const renderCurrentView = () => {
-    if (currentView === 'workspace') {
-      return <Layout />
-    }
-
-    if (currentView === 'sitemap') {
-      return <SitemapPage />
-    }
-
-    return <LandingPage onNavigate={setCurrentView} />
-  }
-
   return (
     <div id="al">
       <div className="al-app">
@@ -33,7 +21,8 @@ function App() {
               <SignIn routing="virtual" />
             </SignedOut>
             <SignedIn>
-              {renderCurrentView()}
+              {currentView === 'workspace' && <Layout />}
+              {currentView === 'sitemap' && <SitemapPage />}
             </SignedIn>
           </>
         )}
@@ -41,6 +30,7 @@ function App() {
       <Analytics />
     </div>
   )
+
 }
 
 export default App

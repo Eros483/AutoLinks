@@ -11,10 +11,23 @@ function Card({ recommendation, index }) {
     }
   }
 
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      handleClick()
+    }
+  }
+
   const isActive = activeCardId === index
 
   return (
-    <div className={`al-card ${isActive ? 'on' : ''}`} onClick={handleClick}>
+    <div
+      className={`al-card ${isActive ? 'on' : ''}`}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
+    >
       <div className="al-card-phrase">{recommendation.exact_phrase}</div>
       <div className="al-card-context">{recommendation.context_snippet}</div>
       <a

@@ -19,19 +19,18 @@ Last run: 2026-07-21
 ### Optimizations applied
 1. **Batch embeddings** — all entity queries sent in one `EmbedBatch` call (vs N sequential `EmbedText`)
 2. **Parallel Qdrant search** — goroutine per entity for `SearchSimilar` + `RerankCandidates`
-3. **Local inference** — `gliner2-base-v1` (205M) + `all-MiniLM-L6-v2` on local CPU, bypassing HF Space rate limits
+3. **HF Space inference** — `gliner2-base-v1` (205M) + `all-MiniLM-L6-v2` served via HF Space (`eros483/autolinks-models`), bypassing local CPU constraints
 4. **Concurrent sitemap fetches** — `semaphore.Weighted(5)` in worker pool `processJob` for 5x ingest speed
 
 ### Model used
-- GLiNER2: `fastino/gliner2-base-v1` (205M params) via `pip install gliner2[local]`
-- Embedding: `all-MiniLM-L6-v2` (384-dim) via `sentence-transformers`
-- Smaller GLiNER v1 option available: `urchade/gliner_small-v2.1` (166M) via `pip install gliner`
+- GLiNER2: `fastino/gliner2-base-v1` (205M params) served via HF Space Gradio API
+- Embedding: `all-MiniLM-L6-v2` (384-dim) served via HF Space Gradio API
 
 ### Infrastructure
 - Backend: Go, single binary, goroutine worker pool
 - Vector DB: Qdrant Cloud (gRPC, cosine similarity)
 - Redis: Upstash (link graph + job queue)
-- All inference runs locally — no external rate limits
+- All inference runs via HF Space — no local model loaded in-process
 
 ### Comparison to migration doc targets
 | Target | Expected | Actual |
