@@ -54,3 +54,9 @@ func Warning(format string, args ...interface{}) {
 func Error(format string, args ...interface{}) {
 	logf("ERROR", format, args...)
 }
+
+// Fatal logs a fatal message and exits the process.
+func Fatal(format string, args ...interface{}) {
+	logf("FATAL", format, args...)
+	os.Exit(1)
+}

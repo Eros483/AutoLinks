@@ -32,6 +32,7 @@ const (
 	defaultMinSimilarity = 0.65
 	defaultAlpha         = 0.7
 	defaultMinCharLength = 5
+	maxRequestBodyBytes  = 1 << 20 // 1MB
 )
 
 // WorkerPool is the shared worker pool instance, set by main.go.
@@ -44,6 +45,7 @@ func NewRouter(tokenVerifier auth.TokenVerifier) chi.Router {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
+	r.Use(requestBodyLimiter(maxRequestBodyBytes))
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   strings.Split(config.FrontendURL(), ","),
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -69,6 +71,17 @@ func NewRouter(tokenVerifier auth.TokenVerifier) chi.Router {
 	})
 
 	return r
+}
+
+func requestBodyLimiter(maxBytes int64) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Body != nil {
+				r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {

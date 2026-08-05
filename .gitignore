@@ -49,3 +49,12 @@ qdrant_storage/
 .codex
 superpowers/
 .superpowerssandbox/
+
+# Go
+backend/server
+*.exe
+*.test
+*.out
+
+# Sandbox
+sandbox/

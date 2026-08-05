@@ -55,9 +55,17 @@ func SearchSimilar(queryEmbedding []float64, limit int, minScore float64) ([]Sea
 	var results []SearchResult
 	for _, point := range resp {
 		payload := point.GetPayload()
+		if payload == nil {
+			continue
+		}
+		urlVal := payload["url"]
+		chunkVal := payload["chunk_text"]
+		if urlVal == nil || chunkVal == nil {
+			continue
+		}
 		results = append(results, SearchResult{
-			URL:       payload["url"].GetStringValue(),
-			ChunkText: payload["chunk_text"].GetStringValue(),
+			URL:       urlVal.GetStringValue(),
+			ChunkText: chunkVal.GetStringValue(),
 			Score:     float64(point.GetScore()),
 		})
 	}

@@ -2,8 +2,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/anomalyco/autolinks/internal/auth"
 	"github.com/anomalyco/autolinks/internal/config"
@@ -19,7 +24,7 @@ func main() {
 	logger.Info("Starting %s", config.AppName())
 
 	if err := qdrant.EnsureCollection(384); err != nil {
-		logger.Error("Failed to ensure Qdrant collection: %s", err)
+		logger.Fatal("Failed to ensure Qdrant collection: %s", err)
 	}
 
 	rerank.RestoreLinkGraph()
@@ -30,11 +35,10 @@ func main() {
 	if sk := config.ClerkSecretKey(); sk != "" {
 		cl, err := clerk.NewClient(sk)
 		if err != nil {
-			logger.Error("Failed to create Clerk client: %s", err)
-		} else {
-			tokenVerifier = cl
-			logger.Info("Clerk auth enabled")
+			logger.Fatal("Failed to create Clerk client: %s", err)
 		}
+		tokenVerifier = cl
+		logger.Info("Clerk auth enabled")
 	} else {
 		logger.Warning("CLERK_SECRET_KEY not set — auth disabled")
 	}
@@ -50,9 +54,34 @@ func main() {
 
 	port := config.Port()
 	addr := fmt.Sprintf(":%s", port)
-	logger.Info("Server listening on %s", addr)
 
-	if err := http.ListenAndServe(addr, router); err != nil {
-		logger.Error("Server failed: %s", err)
+	srv := &http.Server{
+		Addr:         addr,
+		Handler:      router,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 60 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
+
+	shutdown := make(chan os.Signal, 1)
+	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		logger.Info("Server listening on %s", addr)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Fatal("Server failed: %s", err)
+		}
+	}()
+
+	sig := <-shutdown
+	logger.Info("Received %s, shutting down gracefully...", sig)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		logger.Error("Server forced to shutdown: %s", err)
+	}
+
+	logger.Info("Server stopped")
 }
